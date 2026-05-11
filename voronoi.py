@@ -3,44 +3,25 @@ import numpy as np
 import matplotlib.pyplot as plt
 from data_struct import Point, Event, Arc, Segment, PriorityQueue
 
-
-
-
 # voronoi
-
 EPS = 1e-9
-
-
-# VORONOI (QUESTA È LA PARTE CORRETTA)
-
 
 class Voronoi:
     def __init__(self, points):
-        self.output = [] # list of line segment
-        self.arc = None  # binary tree for parabola arcs
+        self.output = [] # output segments
+        self.arc = None  # BS tree for parabola arcs
 
-        self.points = PriorityQueue() # site events
+        self.points = PriorityQueue() # sorted list of site events
         self.event = PriorityQueue() # circle events
 
-        # NEW: delaunay triangles (dual structure)
+        # (later) for delaunay triangles (dual structure)
         self.triangles = []
 
         # bounding box
-        self.x0 = -50.0
-        self.x1 = -50.0
-        self.y0 = 550.0
-        self.y1 = 550.0
-
-        # insert points to site event
-        for pts in points:
-            point = Point(pts[0], pts[1])
-            self.points.push(point)
-            # keep track of bounding box size
-            if point.x < self.x0: self.x0 = point.x
-            if point.y < self.y0: self.y0 = point.y
-            if point.x > self.x1: self.x1 = point.x
-            if point.y > self.y1: self.y1 = point.y
-
+        self.x0 = 0.0
+        self.x1 = 1000.0
+        self.y0 = 0.0
+        self.y1 = 1000.0
         # add margins to the bounding box
         dx = (self.x1 - self.x0 + 1) / 5.0
         dy = (self.y1 - self.y0 + 1) / 5.0
@@ -49,33 +30,39 @@ class Voronoi:
         self.y0 = self.y0 - dy
         self.y1 = self.y1 + dy
 
+        # insert points to site event
+        for pts in points:
+            point = Point(pts[0], pts[1])
+            self.points.push(point)
+
+    # main process loop
     def process(self):
         while not self.points.empty():
+            # next event: site or circle
+            # if the next event has not a <= x coordinate of the next site, then is a circle
             if not self.event.empty() and (self.event.top().x <= self.points.top().x):
-                self.process_event() # handle circle event
+                self.process_circle_event() # handle new circle event
             else:
-                self.process_point() # handle site event
+                self.process_point() # handle new site event
 
         # after all points, process remaining circle events
         while not self.event.empty():
-            self.process_event()
-
+            self.process_circle_event()
+        # finish remaining open edges
         self.finish_edges()
 
     def process_point(self):
         # get next event from site pq
         p = self.points.pop()
-        # add new arc (parabola)
+        # add new parabola
         self.arc_insert(p)
-
-    def process_event(self):
-        # get next event from circle pq
+    
+    def process_circle_event(self):
+        # get next circle event
         e = self.event.pop()
 
         if e.valid:
-            ============================
-            # NEW: Delaunay triangle extraction (DUAL CORRECT)
-            ============================
+            # For Delaunay triangle extraction (later)
             a = e.a
             if a.pprev is not None and a.pnext is not None:
                 p1 = a.pprev.p
@@ -107,6 +94,9 @@ class Voronoi:
     def arc_insert(self, p):
         if self.arc is None:
             self.arc = Arc(p)
+            return
+        if self.arc.p.x == p.x:
+            p.x+= EPS
         else:
             # find the current arcs at p.y
             i = self.arc
@@ -182,14 +172,14 @@ class Voronoi:
         return False, None
     def check_circle_event(self, i, x0):
         # look for a new circle event for arc i
-        if (i.e is not None) and (i.e.x  != self.x0):
+        if (i.e is not None) and (i.e.x  != x0):
             i.e.valid = False
         i.e = None
 
         if (i.pprev is None) or (i.pnext is None): return
 
         flag, x, o = self.circle(i.pprev.p, i.p, i.pnext.p)
-        if flag and (x > self.x0):
+        if flag and (x > x0):
             i.e = Event(x, o, i)
             self.event.push(i.e)
 
@@ -246,7 +236,7 @@ class Voronoi:
         return res
 
     def finish_edges(self):
-        l = self.x1 + (self.x1 - self.x0) + (self.y1 - self.y0)
+        l = 2000.0 
         i = self.arc
         while i.pnext is not None:
             if i.s1 is not None:
@@ -265,6 +255,8 @@ class Voronoi:
 
 # DRAW
 def draw_voronoi(ax, points, color):
+    ax.set_xlim(0, 1000)
+    ax.set_ylim(0, 1000)
     v = Voronoi(points)
     v.process()
 
