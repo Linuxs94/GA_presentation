@@ -25,6 +25,10 @@ class FortuneSnapshot:
     finished_segments: list[tuple[PointTuple, PointTuple]]
     voronoi_dual_pairs: list[dict[str, object]]
     delaunay_edges: list[tuple[PointTuple, PointTuple]]
+    active_circle_center: PointTuple | None
+    active_circle_radius: float | None
+    active_circle_sites: list[PointTuple]
+    action_summary: str
 
 
 class FortuneVoronoi:
@@ -62,14 +66,14 @@ class FortuneVoronoi:
 
         self._finish_edges()
         if capture:
-            self._capture_snapshot("done", self.max_x, None)
+            self._capture_snapshot("done", self.max_x, None, action_summary="finish remaining edges")
 
     def _process_site_event(self, capture: bool) -> None:
         site = self.site_events.pop()
         self.processed_sites.append(site.as_tuple())
         self._insert_arc(site)
         if capture:
-            self._capture_snapshot("site", site.x, site.as_tuple())
+            self._capture_snapshot("site", site.x, site.as_tuple(), action_summary=f"insert site at {site.as_tuple()}")
 
     def _process_circle_event(self, capture: bool) -> None:
         event = self.circle_events.pop()
@@ -77,8 +81,12 @@ class FortuneVoronoi:
             return
 
         arc = event.arc
+        circle_sites: list[PointTuple] = []
+        circle_radius: float | None = None
         if arc.previous is not None and arc.next is not None:
             self.triangles.append((arc.previous.site, arc.site, arc.next.site))
+            circle_sites = [arc.previous.site.as_tuple(), arc.site.as_tuple(), arc.next.site.as_tuple()]
+            circle_radius = math.dist(event.center.as_tuple(), arc.site.as_tuple())
 
         segment = Segment(event.center)
         self.output.append(segment)
@@ -101,7 +109,15 @@ class FortuneVoronoi:
             self._check_circle_event(arc.next, event.x)
 
         if capture:
-            self._capture_snapshot("circle", event.x, event.center.as_tuple())
+            self._capture_snapshot(
+                "circle",
+                event.x,
+                event.center.as_tuple(),
+                active_circle_center=event.center.as_tuple(),
+                active_circle_radius=circle_radius,
+                active_circle_sites=circle_sites,
+                action_summary=f"remove disappearing arc at {event.center.as_tuple()}",
+            )
 
     def _insert_arc(self, site: Point) -> None:
         if self.root_arc is None:
@@ -233,7 +249,16 @@ class FortuneVoronoi:
                 arc.right_segment.finish(self._parabola_intersection(arc.site, arc.next.site, directrix_x))
             arc = arc.next
 
-    def _capture_snapshot(self, event_kind: str, sweep_x: float, focus: PointTuple | None) -> None:
+    def _capture_snapshot(
+        self,
+        event_kind: str,
+        sweep_x: float,
+        focus: PointTuple | None,
+        active_circle_center: PointTuple | None = None,
+        active_circle_radius: float | None = None,
+        active_circle_sites: list[PointTuple] | None = None,
+        action_summary: str = "",
+    ) -> None:
         arc_sites: list[PointTuple] = []
         arc = self.root_arc
         while arc is not None:
@@ -286,6 +311,10 @@ class FortuneVoronoi:
                 finished_segments=finished_segments,
                 voronoi_dual_pairs=voronoi_dual_pairs,
                 delaunay_edges=sorted(delaunay_edges),
+                active_circle_center=active_circle_center,
+                active_circle_radius=active_circle_radius,
+                active_circle_sites=active_circle_sites or [],
+                action_summary=action_summary,
             )
         )
 

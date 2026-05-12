@@ -9,6 +9,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.animation as animation
 import matplotlib.pyplot as plt
+from matplotlib.patches import Circle
 import numpy as np
 
 
@@ -264,6 +265,19 @@ def render_fortune_snapshot(
         for polyline in snapshot.beachline:
             draw_polyline(ax, polyline, "#ff9f1c", linewidth=1.4)
 
+    if snapshot.active_circle_center is not None and snapshot.active_circle_radius is not None:
+        ax.add_patch(
+            Circle(
+                snapshot.active_circle_center,
+                snapshot.active_circle_radius,
+                fill=False,
+                linestyle=":",
+                linewidth=1.5,
+                edgecolor="#8d99ae",
+            )
+        )
+        draw_points(ax, snapshot.active_circle_sites, color="#8338ec", size=24.0)
+
     if show_voronoi:
         for start, end in snapshot.finished_segments:
             ax.plot([start[0], end[0]], [start[1], end[1]], color="#2a9d8f", linewidth=1.4)
@@ -281,6 +295,7 @@ def render_fortune_snapshot(
             f"processed = {len(snapshot.processed_sites)}",
             f"beach arcs = {len(snapshot.arc_sites)}",
             f"Voronoi edges = {len(snapshot.finished_segments)}",
+            f"action = {snapshot.action_summary or snapshot.event_kind}",
         ],
     )
 

@@ -13,7 +13,10 @@ class HullSnapshot:
     sorted_points: list[PointTuple]
     action: str
     candidate: PointTuple
+    stack_before: list[PointTuple]
     stack: list[PointTuple]
+    test_points: tuple[PointTuple, PointTuple, PointTuple] | None
+    orientation_value: float | None
 
 
 def orientation(a: PointTuple, b: PointTuple, c: PointTuple) -> float:
@@ -23,7 +26,10 @@ def orientation(a: PointTuple, b: PointTuple, c: PointTuple) -> float:
 def graham_scan(points: list[PointTuple]) -> tuple[list[PointTuple], list[HullSnapshot]]:
     unique_points = sorted(set(points))
     if len(unique_points) < 3:
-        return unique_points[:], [HullSnapshot(point, unique_points[:], "seed", point, [point]) for point in unique_points]
+        return unique_points[:], [
+            HullSnapshot(point, unique_points[:], "seed", point, [], [point], None, None)
+            for point in unique_points
+        ]
 
     pivot = min(unique_points, key=lambda point: (point[1], point[0]))
 
@@ -40,10 +46,42 @@ def graham_scan(points: list[PointTuple]) -> tuple[list[PointTuple], list[HullSn
 
     for point in sorted_points:
         # Remove the last point while the hull would turn clockwise or stay flat.
-        while len(stack) >= 2 and orientation(stack[-2], stack[-1], point) <= 0:
+        while len(stack) >= 2:
+            before_stack = stack[:]
+            turn_value = orientation(stack[-2], stack[-1], point)
+            if turn_value > 0:
+                break
             stack.pop()
-            snapshots.append(HullSnapshot(pivot, sorted_points[:], "pop", point, stack[:]))
+            snapshots.append(
+                HullSnapshot(
+                    pivot,
+                    sorted_points[:],
+                    "pop",
+                    point,
+                    before_stack,
+                    stack[:],
+                    (before_stack[-2], before_stack[-1], point),
+                    turn_value,
+                )
+            )
+        before_stack = stack[:]
         stack.append(point)
-        snapshots.append(HullSnapshot(pivot, sorted_points[:], "push", point, stack[:]))
+        test_points = None
+        turn_value = None
+        if len(before_stack) >= 2:
+            test_points = (before_stack[-2], before_stack[-1], point)
+            turn_value = orientation(*test_points)
+        snapshots.append(
+            HullSnapshot(
+                pivot,
+                sorted_points[:],
+                "push",
+                point,
+                before_stack,
+                stack[:],
+                test_points,
+                turn_value,
+            )
+        )
 
     return stack, snapshots

@@ -6,6 +6,7 @@ import sys
 
 import gradio as gr
 import plotly.graph_objects as go
+import math
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -229,20 +230,33 @@ def highlight_point(fig: go.Figure, point: Point, color: str, size: int = 16, sy
     )
 
 
+def add_circle_trace(fig: go.Figure, center: Point, radius: float, color: str = "#8d99ae") -> None:
+    xs: list[float] = []
+    ys: list[float] = []
+    for index in range(121):
+        angle = (2.0 * math.pi * index) / 120.0
+        xs.append(center[0] + radius * math.cos(angle))
+        ys.append(center[1] + radius * math.sin(angle))
+    fig.add_trace(
+        go.Scatter(
+            x=xs,
+            y=ys,
+            mode="lines",
+            line={"color": color, "width": 2, "dash": "dot"},
+        )
+    )
+
+
 def hull_structure_html(state: dict[str, object], step: int) -> str:
     points = state["points"]
     names = make_point_names(points)
     hull = state["hull"]
     snapshot = state["hull_steps"][step]
     candidate_name = names[snapshot.candidate]
-    stack_names = [names[point] for point in snapshot.stack]
-
-    orientation_value = None
-    triple_names: list[str] = []
-    if len(snapshot.stack) >= 2:
-        a, b = snapshot.stack[-2], snapshot.stack[-1]
-        orientation_value = orientation(a, b, snapshot.candidate)
-        triple_names = [names[a], names[b], candidate_name]
+    before_stack_names = [names[point] for point in snapshot.stack_before]
+    after_stack_names = [names[point] for point in snapshot.stack]
+    orientation_value = snapshot.orientation_value
+    triple_names = [names[point] for point in snapshot.test_points] if snapshot.test_points is not None else []
 
     body = "<div class='metric-grid'>"
     body += metric("Step", f"{step + 1}/{len(state['hull_steps'])}")
@@ -252,14 +266,24 @@ def hull_structure_html(state: dict[str, object], step: int) -> str:
     body += "</div>"
     body += "<h4>Sorted Order</h4>"
     body += chips([names[point] for point in snapshot.sorted_points])
-    body += "<h4>Hull Stack</h4>"
-    body += chips(stack_names)
+    body += "<h4>Stack Before</h4>"
+    body += chips(before_stack_names)
+    body += "<h4>Stack After</h4>"
+    body += chips(after_stack_names)
     body += "<h4>Current Orientation Test</h4>"
     orientation_lines = [f"triple = {', '.join(triple_names)}"] if triple_names else ["stack has fewer than 2 points"]
     if orientation_value is not None:
         turn = "counterclockwise" if orientation_value > 0 else "clockwise/flat"
         orientation_lines.extend([f"cross = {orientation_value:.3f}", f"decision = {turn}"])
     body += list_block(orientation_lines)
+    body += "<h4>Action Log</h4>"
+    action_lines = [
+        f"take candidate {candidate_name}",
+        f"compare against top of stack [{', '.join(before_stack_names)}]" if before_stack_names else "stack initially empty",
+        f"{snapshot.action} candidate or top element",
+        f"new stack = [{', '.join(after_stack_names)}]",
+    ]
+    body += list_block(action_lines)
     if hull:
         body += "<h4>Final Hull (when done)</h4>"
         body += chips([names[point] for point in hull])
@@ -297,6 +321,15 @@ def winding_structure_html(state: dict[str, object], step: int, closed: bool) ->
             f"delta = {step_data['angle']:.3f}",
         ]
     )
+    body += "<h4>Action Log</h4>"
+    body += list_block(
+        [
+            f"take edge e{step_data['edge_index']}",
+            f"measure signed angle from {vertex_names[step_data['start']]} to {vertex_names[step_data['end']]} around the query point",
+            f"add {step_data['angle']:.3f} to the running sum",
+            f"new winding value = {step_data['winding']:.3f}",
+        ]
+    )
     return panel("Winding Number State", body)
 
 
@@ -330,6 +363,24 @@ def fortune_structure_html(state: dict[str, object], snapshot: FortuneSnapshot, 
     body += list_block(
         [f"x={event_x:.3f}  center={format_point(center)}" for event_x, center in snapshot.pending_circles]
     )
+    if snapshot.active_circle_center is not None and snapshot.active_circle_radius is not None:
+        body += "<h4>Active Circle Event</h4>"
+        body += list_block(
+            [
+                f"center = {format_point(snapshot.active_circle_center)}",
+                f"radius = {snapshot.active_circle_radius:.3f}",
+                "sites = " + ", ".join(names.get(point, "?") for point in snapshot.active_circle_sites),
+            ]
+        )
+    body += "<h4>Action Log</h4>"
+    action_lines = [
+        snapshot.action_summary or f"process {snapshot.event_kind} event",
+        f"beach line after step = [{', '.join(names.get(point, '?') for point in snapshot.arc_sites)}]",
+        f"completed Voronoi edges = {len(snapshot.finished_segments)}",
+    ]
+    if snapshot.active_circle_center is not None:
+        action_lines.append("the dashed circle explains why this circle event occurs")
+    body += list_block(action_lines)
     if pair is not None:
         start, end = pair["voronoi"]
         dual_start, dual_end = pair["dual"]
@@ -377,15 +428,18 @@ def hull_figure(state: dict[str, object], step: int) -> tuple[go.Figure, str, st
             line={"color": "rgba(80, 112, 180, 0.25)", "width": 1, "dash": "dot"},
         )
     )
-    if len(snapshot.stack) >= 2:
+    if snapshot.test_points is not None:
+        a, b, c = snapshot.test_points
         fig.add_trace(
             go.Scatter(
-                x=[snapshot.stack[-2][0], snapshot.stack[-1][0], snapshot.candidate[0]],
-                y=[snapshot.stack[-2][1], snapshot.stack[-1][1], snapshot.candidate[1]],
+                x=[a[0], b[0], c[0]],
+                y=[a[1], b[1], c[1]],
                 mode="lines",
                 line={"color": "#ff9f1c", "width": 3, "dash": "dash"},
             )
         )
+        highlight_point(fig, a, "#577590", size=14)
+        highlight_point(fig, b, "#577590", size=14)
     if snapshot.stack:
         fig.add_trace(
             go.Scatter(
@@ -416,6 +470,8 @@ def hull_figure(state: dict[str, object], step: int) -> tuple[go.Figure, str, st
             f"candidate = {names[snapshot.candidate]}",
             f"pivot = {names[snapshot.pivot]}",
             f"action = {snapshot.action}",
+            f"stack before = {len(snapshot.stack_before)} points",
+            f"stack after = {len(snapshot.stack)} points",
             "orange dashed chain = current orientation test",
             "red chain = current hull stack",
         ],
@@ -593,6 +649,11 @@ def fortune_figure(state: dict[str, object], step: int, mode: str) -> tuple[go.F
                     line={"color": "#ff9f1c", "width": 3},
                 )
             )
+    if snapshot.active_circle_center is not None and snapshot.active_circle_radius is not None and mode in {"fortune", "voronoi", "delaunay"}:
+        add_circle_trace(fig, snapshot.active_circle_center, snapshot.active_circle_radius, color="#8d99ae")
+        highlight_point(fig, snapshot.active_circle_center, "#8d99ae", size=14, symbol="diamond")
+        for site in snapshot.active_circle_sites:
+            highlight_point(fig, site, "#8338ec", size=15)
 
     if snapshot.focus is not None:
         highlight_point(fig, snapshot.focus, "#e63946", size=18, symbol="x")
@@ -623,9 +684,12 @@ def fortune_figure(state: dict[str, object], step: int, mode: str) -> tuple[go.F
         f"sweep x = {snapshot.sweep_x:.2f}",
         f"processed sites = {len(snapshot.processed_sites)}",
         f"pending circles = {len(snapshot.pending_circles)}",
+        f"action = {snapshot.action_summary or snapshot.event_kind}",
     ]
     if mode == "fortune":
         description_lines.append("orange arcs = current beach line")
+        if snapshot.active_circle_center is not None:
+            description_lines.append("gray dashed circle = active circle event")
     if mode == "duality":
         description_lines.append("green edge and red edge form a dual pair")
     add_state_annotation(fig, "Current Geometry", description_lines)
