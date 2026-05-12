@@ -1,0 +1,21 @@
+{
+  "primitive_datasets": [
+    "square",
+    "hexagon",
+    "star"
+  ],
+  "winding_query_point": [
+    0.2,
+    0.3
+  ],
+  "convex_hull_vertex_count": 7,
+  "delaunay_triangle_count": 27,
+  "pruned_triangle_count": 13,
+  "union_active_cells": 2217,
+  "intersection_active_cells": 697,
+  "difference_active_cells": 1017,
+  "marching_segment_count": 354,
+  "marching_case_count": 7921,
+  "toolpath_polyline_count": 1,
+  "travel_move_count": 0
+}
