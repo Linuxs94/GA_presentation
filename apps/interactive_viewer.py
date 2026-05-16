@@ -7,6 +7,7 @@ import sys
 import gradio as gr
 import plotly.graph_objects as go
 import math
+from PIL import Image, ImageDraw
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -27,6 +28,8 @@ from ga_presentation.winding import build_winding_field, compute_bounds, polygon
 
 
 Point = tuple[float, float]
+EDITOR_BOUNDS = (0.0, 10.0, 0.0, 10.0)
+EDITOR_SIZE = 520
 
 APP_CSS = """
 .app-shell {max-width: 1600px !important; margin: 0 auto;}
@@ -103,12 +106,24 @@ APP_CSS = """
 """
 
 
-def make_point_names(points: list[Point], prefix: str = "p") -> dict[Point, str]:
-    return {point: f"{prefix}{index}" for index, point in enumerate(points)}
+def point_key(point: object) -> tuple[float, float]:
+    if hasattr(point, "x") and hasattr(point, "y"):
+        return (float(point.x), float(point.y))
+    return (float(point[0]), float(point[1]))
+
+
+def make_point_names(points: list[Point], prefix: str = "p") -> dict[object, str]:
+    names: dict[object, str] = {}
+    for index, point in enumerate(points):
+        label = f"{prefix}{index}"
+        names[point] = label
+        names[point_key(point)] = label
+    return names
 
 
 def format_point(point: Point) -> str:
-    return f"({point[0]:.2f}, {point[1]:.2f})"
+    px, py = point_key(point)
+    return f"({px:.2f}, {py:.2f})"
 
 
 def chips(items: list[str]) -> str:
@@ -141,22 +156,82 @@ def choose_points(mode: str, count: int, seed: int) -> list[Point]:
         return sample_uniform_points(count, (0.0, 10.0, 0.0, 10.0), seed=seed)
     if mode == "gaussian":
         return sample_gaussian_clusters(count, [(2.5, 2.5), (7.0, 3.0), (5.0, 8.0)], sigma=0.8, seed=seed)
+    if mode == "custom":
+        return []
     return sample_polygon_boundary(polygons["p1"], count, seed=seed)
 
 
-def build_scenarios(point_mode: str, count: int, seed: int) -> dict[str, object]:
-    points = choose_points(point_mode, count, seed)
+def point_to_pixel(point: Point, size: int = EDITOR_SIZE, bounds: tuple[float, float, float, float] = EDITOR_BOUNDS) -> tuple[int, int]:
+    min_x, max_x, min_y, max_y = bounds
+    px = int(round((point[0] - min_x) / max(max_x - min_x, 1e-9) * (size - 1)))
+    py = int(round((max_y - point[1]) / max(max_y - min_y, 1e-9) * (size - 1)))
+    return px, py
+
+
+def pixel_to_point(index: tuple[int, int], size: int = EDITOR_SIZE, bounds: tuple[float, float, float, float] = EDITOR_BOUNDS) -> Point:
+    row, col = index
+    min_x, max_x, min_y, max_y = bounds
+    x = min_x + (col / max(size - 1, 1)) * (max_x - min_x)
+    y = max_y - (row / max(size - 1, 1)) * (max_y - min_y)
+    return (round(x, 3), round(y, 3))
+
+
+def build_editor_image(points: list[Point], size: int = EDITOR_SIZE) -> Image.Image:
+    image = Image.new("RGB", (size, size), "#fbfcfe")
+    draw = ImageDraw.Draw(image)
+
+    for tick in range(11):
+        x = int(round(tick * (size - 1) / 10))
+        y = int(round(tick * (size - 1) / 10))
+        draw.line((x, 0, x, size), fill="#dde3ef", width=1)
+        draw.line((0, y, size, y), fill="#dde3ef", width=1)
+
+    draw.rectangle((0, 0, size - 1, size - 1), outline="#7c8798", width=2)
+
+    for index, point in enumerate(points):
+        px, py = point_to_pixel(point, size=size)
+        draw.ellipse((px - 6, py - 6, px + 6, py + 6), fill="#d62828", outline="white", width=2)
+        draw.text((px + 8, py - 14), f"p{index}", fill="#132238")
+
+    draw.text((12, 10), "Click to add points", fill="#132238")
+    draw.text((12, size - 24), "Editor bounds: x,y in [0,10]", fill="#5d6577")
+    return image
+
+
+def custom_points_html(points: list[Point]) -> str:
+    body = "<div class='metric-grid'>"
+    body += metric("Mode", "custom clicks")
+    body += metric("Point Count", str(len(points)))
+    body += "</div>"
+    body += "<h4>Custom Points</h4>"
+    body += list_block([f"p{index} = {format_point(point)}" for index, point in enumerate(points)])
+    body += "<h4>Usage</h4>"
+    body += list_block(
+        [
+            "1. click on the editor to append a point",
+            "2. the app switches to custom mode automatically",
+            "3. use remove-last or clear to edit the set",
+        ]
+    )
+    return panel("Point Editor", body)
+
+
+def build_scenarios(point_mode: str, count: int, seed: int, custom_points: list[Point] | None = None) -> dict[str, object]:
+    points = custom_points[:] if point_mode == "custom" and custom_points is not None else choose_points(point_mode, count, seed)
     polygons = load_repo_polygons(ROOT)
     winding_polygon = star_polygon((0.0, 0.0), 2.1, 5.0, 5)
     winding_query = (0.2, 0.25)
     winding_bounds = compute_bounds([winding_polygon], margin=1.0)
     hull, hull_steps = graham_scan(points)
-    bounds = (
-        min(point[0] for point in points) - 1.0,
-        max(point[0] for point in points) + 1.0,
-        min(point[1] for point in points) - 1.0,
-        max(point[1] for point in points) + 1.0,
-    )
+    if points:
+        bounds = (
+            min(point[0] for point in points) - 1.0,
+            max(point[0] for point in points) + 1.0,
+            min(point[1] for point in points) - 1.0,
+            max(point[1] for point in points) + 1.0,
+        )
+    else:
+        bounds = EDITOR_BOUNDS
     fortune = compute_voronoi(points, bounds, capture=True)
     return {
         "points": points,
@@ -349,6 +424,7 @@ def fortune_structure_html(state: dict[str, object], snapshot: FortuneSnapshot, 
     body += metric("Processed Sites", str(len(snapshot.processed_sites)))
     body += metric("Beach Arcs", str(len(snapshot.arc_sites)))
     body += metric("Voronoi Edges", str(len(snapshot.finished_segments)))
+    body += metric("Growing Edges", str(len(snapshot.active_segments)))
     body += metric("Delaunay Edges", str(len(snapshot.delaunay_edges)))
     body += "</div>"
     body += "<h4>Processed Sites</h4>"
@@ -404,6 +480,12 @@ def explanation_html(title: str, paragraphs: list[str]) -> str:
 
 def hull_figure(state: dict[str, object], step: int) -> tuple[go.Figure, str, str]:
     points = state["points"]
+    if not points:
+        fig = go.Figure(layout=base_layout("Convex Hull: Graham Scan"))
+        fig.update_xaxes(range=[EDITOR_BOUNDS[0], EDITOR_BOUNDS[1]])
+        fig.update_yaxes(range=[EDITOR_BOUNDS[2], EDITOR_BOUNDS[3]])
+        add_state_annotation(fig, "Current Geometry", ["no points yet", "use the point editor to add a custom set"])
+        return fig, panel("Graham Scan State", list_block(["No points available. Add points in the editor."])), explanation_html("What is happening now", ["The hull view needs points. Click in the editor to create a custom set."])
     names = make_point_names(points)
     snapshots = state["hull_steps"]
     hull = state["hull"]
@@ -618,6 +700,16 @@ def fortune_figure(state: dict[str, object], step: int, mode: str) -> tuple[go.F
                     opacity=1.0 if mode != "duality" else 0.22,
                 )
             )
+        for start, end in snapshot.active_segments:
+            fig.add_trace(
+                go.Scatter(
+                    x=[start[0], end[0]],
+                    y=[start[1], end[1]],
+                    mode="lines",
+                    line={"color": "#52b788", "width": 3 if mode == "fortune" else 2, "dash": "dot"},
+                    opacity=0.95 if mode == "fortune" else 0.85,
+                )
+            )
 
     if mode in {"fortune", "delaunay", "duality"}:
         for start, end in snapshot.delaunay_edges:
@@ -688,6 +780,7 @@ def fortune_figure(state: dict[str, object], step: int, mode: str) -> tuple[go.F
     ]
     if mode == "fortune":
         description_lines.append("orange arcs = current beach line")
+        description_lines.append("green dotted edges = growing Voronoi rays")
         if snapshot.active_circle_center is not None:
             description_lines.append("gray dashed circle = active circle event")
     if mode == "duality":
@@ -732,16 +825,16 @@ def fortune_figure(state: dict[str, object], step: int, mode: str) -> tuple[go.F
 
 def algorithm_info(algorithm: str, state: dict[str, object]) -> tuple[int, str]:
     if algorithm == "convex_hull":
-        total = len(state["hull_steps"])
+        total = max(1, len(state["hull_steps"]))
         label = "Convex hull: inspect push/pop events, stack evolution, and the current orientation test."
     elif algorithm == "winding_closed":
-        total = len(state["winding_closed_trace"])
+        total = max(1, len(state["winding_closed_trace"]))
         label = "Closed winding number: the last-to-first edge is part of the accumulation."
     elif algorithm == "winding_open":
-        total = len(state["winding_open_trace"])
+        total = max(1, len(state["winding_open_trace"]))
         label = "Open winding number: the final closing edge is excluded."
     else:
-        total = len(state["fortune"].snapshots)
+        total = max(1, len(state["fortune"].snapshots))
         label = "Fortune / Voronoi / Delaunay: all four views share the same event-by-event snapshot sequence."
     return total, label
 
@@ -753,10 +846,12 @@ def render_algorithm(
     count: int,
     seed: int,
     stored_state: dict[str, object] | None,
+    custom_points: list[Point] | None,
 ):
-    if stored_state is None or stored_state.get("meta") != (point_mode, count, seed):
-        stored_state = build_scenarios(point_mode, count, seed)
-        stored_state["meta"] = (point_mode, count, seed)
+    custom_key = tuple(custom_points or [])
+    if stored_state is None or stored_state.get("meta") != (point_mode, count, seed, custom_key):
+        stored_state = build_scenarios(point_mode, count, seed, custom_points=custom_points or [])
+        stored_state["meta"] = (point_mode, count, seed, custom_key)
 
     total_steps, description = algorithm_info(algorithm, stored_state)
     step = max(0, min(step, total_steps - 1))
@@ -784,6 +879,8 @@ def render_algorithm(
         explanation,
         gr.update(maximum=total_steps - 1, value=step),
         stored_state,
+        build_editor_image(custom_points or []),
+        custom_points_html(custom_points or []),
     )
 
 
@@ -792,6 +889,74 @@ def shift_step(delta: int, current_step: int, algorithm: str, stored_state: dict
         return current_step
     total_steps, _ = algorithm_info(algorithm, stored_state)
     return max(0, min(current_step + delta, total_steps - 1))
+
+
+def add_custom_point(
+    evt: gr.SelectData,
+    custom_points: list[Point] | None,
+    algorithm: str,
+    point_mode: str,
+    count: int,
+    seed: int,
+    stored_state: dict[str, object] | None,
+):
+    points = list(custom_points or [])
+    if isinstance(evt.index, (tuple, list)) and len(evt.index) == 2:
+        point = pixel_to_point((int(evt.index[0]), int(evt.index[1])))
+        points.append(point)
+    figure, header, structure, explanation, step_update, new_state, editor_image, editor_html = render_algorithm(
+        algorithm,
+        0,
+        "custom",
+        count,
+        seed,
+        stored_state,
+        points,
+    )
+    return figure, header, structure, explanation, step_update, new_state, points, editor_image, editor_html, gr.update(value="custom")
+
+
+def remove_last_custom_point(
+    custom_points: list[Point] | None,
+    algorithm: str,
+    point_mode: str,
+    count: int,
+    seed: int,
+    stored_state: dict[str, object] | None,
+):
+    points = list(custom_points or [])
+    if points:
+        points.pop()
+    figure, header, structure, explanation, step_update, new_state, editor_image, editor_html = render_algorithm(
+        algorithm,
+        0,
+        "custom",
+        count,
+        seed,
+        stored_state,
+        points,
+    )
+    return figure, header, structure, explanation, step_update, new_state, points, editor_image, editor_html, gr.update(value="custom")
+
+
+def clear_custom_points(
+    algorithm: str,
+    point_mode: str,
+    count: int,
+    seed: int,
+    stored_state: dict[str, object] | None,
+):
+    points: list[Point] = []
+    figure, header, structure, explanation, step_update, new_state, editor_image, editor_html = render_algorithm(
+        algorithm,
+        0,
+        "custom",
+        count,
+        seed,
+        stored_state,
+        points,
+    )
+    return figure, header, structure, explanation, step_update, new_state, points, editor_image, editor_html, gr.update(value="custom")
 
 
 def launch() -> gr.Blocks:
@@ -808,6 +973,7 @@ def launch() -> gr.Blocks:
             )
 
             state = gr.State(None)
+            custom_points = gr.State([])
 
             with gr.Row():
                 algorithm = gr.Dropdown(
@@ -824,7 +990,7 @@ def launch() -> gr.Blocks:
                     label="Algorithm",
                 )
                 point_mode = gr.Dropdown(
-                    choices=[("Uniform random", "uniform"), ("Gaussian clusters", "gaussian"), ("Polygon boundary", "boundary")],
+                    choices=[("Uniform random", "uniform"), ("Gaussian clusters", "gaussian"), ("Polygon boundary", "boundary"), ("Custom clicks", "custom")],
                     value="uniform",
                     label="Point generation mode",
                 )
@@ -845,8 +1011,25 @@ def launch() -> gr.Blocks:
                     structure = gr.HTML()
                     explanation = gr.HTML()
 
-            inputs = [algorithm, step, point_mode, point_count, seed, state]
-            outputs = [plot, header, structure, explanation, step, state]
+            with gr.Row():
+                with gr.Column(scale=5):
+                    editor = gr.Image(
+                        value=build_editor_image([]),
+                        type="pil",
+                        interactive=True,
+                        sources=[],
+                        label="Custom point editor",
+                        height=420,
+                        width=420,
+                    )
+                    with gr.Row():
+                        remove_last = gr.Button("Remove Last Point", variant="secondary")
+                        clear_points = gr.Button("Clear Points", variant="secondary")
+                with gr.Column(scale=6):
+                    editor_info = gr.HTML(value=custom_points_html([]))
+
+            inputs = [algorithm, step, point_mode, point_count, seed, state, custom_points]
+            outputs = [plot, header, structure, explanation, step, state, editor, editor_info]
 
             algorithm.change(render_algorithm, inputs=inputs, outputs=outputs)
             step.change(render_algorithm, inputs=inputs, outputs=outputs)
@@ -865,10 +1048,25 @@ def launch() -> gr.Blocks:
                 inputs=[step, algorithm, state],
                 outputs=[step],
             )
+            editor.select(
+                add_custom_point,
+                inputs=[custom_points, algorithm, point_mode, point_count, seed, state],
+                outputs=[plot, header, structure, explanation, step, state, custom_points, editor, editor_info, point_mode],
+            )
+            remove_last.click(
+                remove_last_custom_point,
+                inputs=[custom_points, algorithm, point_mode, point_count, seed, state],
+                outputs=[plot, header, structure, explanation, step, state, custom_points, editor, editor_info, point_mode],
+            )
+            clear_points.click(
+                clear_custom_points,
+                inputs=[algorithm, point_mode, point_count, seed, state],
+                outputs=[plot, header, structure, explanation, step, state, custom_points, editor, editor_info, point_mode],
+            )
 
             demo.load(
                 render_algorithm,
-                inputs=[algorithm, step, point_mode, point_count, seed, state],
+                inputs=inputs,
                 outputs=outputs,
             )
 

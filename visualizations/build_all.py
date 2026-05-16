@@ -281,6 +281,8 @@ def render_fortune_snapshot(
     if show_voronoi:
         for start, end in snapshot.finished_segments:
             ax.plot([start[0], end[0]], [start[1], end[1]], color="#2a9d8f", linewidth=1.4)
+        for start, end in snapshot.active_segments:
+            ax.plot([start[0], end[0]], [start[1], end[1]], color="#52b788", linewidth=1.6, linestyle=":")
 
     if show_delaunay:
         for start, end in snapshot.delaunay_edges:
@@ -295,6 +297,7 @@ def render_fortune_snapshot(
             f"processed = {len(snapshot.processed_sites)}",
             f"beach arcs = {len(snapshot.arc_sites)}",
             f"Voronoi edges = {len(snapshot.finished_segments)}",
+            f"growing edges = {len(snapshot.active_segments)}",
             f"action = {snapshot.action_summary or snapshot.event_kind}",
         ],
     )
@@ -334,6 +337,8 @@ def save_fortune_assets(
         draw_points(ax, points, color="#555555", size=18.0)
         for start, end in snapshots[frame_index].finished_segments:
             ax.plot([start[0], end[0]], [start[1], end[1]], color="#2a9d8f", linewidth=1.4)
+        for start, end in snapshots[frame_index].active_segments:
+            ax.plot([start[0], end[0]], [start[1], end[1]], color="#52b788", linewidth=1.5, linestyle=":")
 
     ani = animation.FuncAnimation(
         fig,

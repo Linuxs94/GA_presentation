@@ -10,6 +10,17 @@ class Point:
     x: float
     y: float
 
+    def __iter__(self):
+        yield self.x
+        yield self.y
+
+    def __getitem__(self, index: int) -> float:
+        if index == 0:
+            return self.x
+        if index == 1:
+            return self.y
+        raise IndexError(index)
+
     def as_tuple(self) -> tuple[float, float]:
         return (self.x, self.y)
 

@@ -5,41 +5,50 @@ import numpy as np
 
 
 PointTuple = tuple[float, float]
+PointLike = tuple[float, float] | object
 
 
-def polygon_edges(polygon: list[PointTuple], closed: bool = True) -> list[tuple[PointTuple, PointTuple]]:
+def point_xy(point: PointLike) -> PointTuple:
+    if hasattr(point, "x") and hasattr(point, "y"):
+        return (float(point.x), float(point.y))
+    return (float(point[0]), float(point[1]))
+
+
+def polygon_edges(polygon: list[PointLike], closed: bool = True) -> list[tuple[PointTuple, PointTuple]]:
     if len(polygon) < 2:
         return []
     limit = len(polygon) if closed else len(polygon) - 1
     return [
-        (polygon[index], polygon[(index + 1) % len(polygon)])
+        (point_xy(polygon[index]), point_xy(polygon[(index + 1) % len(polygon)]))
         for index in range(limit)
     ]
 
 
-def winding_number(point: PointTuple, polygon: list[PointTuple], closed: bool = True) -> float:
+def winding_number(point: PointLike, polygon: list[PointLike], closed: bool = True) -> float:
+    px, py = point_xy(point)
     total_angle = 0.0
     for start, end in polygon_edges(polygon, closed=closed):
-        x1 = start[0] - point[0]
-        y1 = start[1] - point[1]
-        x2 = end[0] - point[0]
-        y2 = end[1] - point[1]
+        x1 = start[0] - px
+        y1 = start[1] - py
+        x2 = end[0] - px
+        y2 = end[1] - py
         total_angle += math.atan2(x1 * y2 - y1 * x2, x1 * x2 + y1 * y2)
     return total_angle / (2.0 * math.pi)
 
 
 def winding_trace(
-    point: PointTuple,
-    polygon: list[PointTuple],
+    point: PointLike,
+    polygon: list[PointLike],
     closed: bool = True,
 ) -> list[dict[str, object]]:
+    px, py = point_xy(point)
     total_angle = 0.0
     steps: list[dict[str, object]] = []
     for index, (start, end) in enumerate(polygon_edges(polygon, closed=closed)):
-        x1 = start[0] - point[0]
-        y1 = start[1] - point[1]
-        x2 = end[0] - point[0]
-        y2 = end[1] - point[1]
+        x1 = start[0] - px
+        y1 = start[1] - py
+        x2 = end[0] - px
+        y2 = end[1] - py
         angle = math.atan2(x1 * y2 - y1 * x2, x1 * x2 + y1 * y2)
         total_angle += angle
         steps.append(
@@ -54,14 +63,14 @@ def winding_trace(
     return steps
 
 
-def compute_bounds(polygons: list[list[PointTuple]], margin: float = 2.0) -> tuple[float, float, float, float]:
-    all_x = [point[0] for polygon in polygons for point in polygon]
-    all_y = [point[1] for polygon in polygons for point in polygon]
+def compute_bounds(polygons: list[list[PointLike]], margin: float = 2.0) -> tuple[float, float, float, float]:
+    all_x = [point_xy(point)[0] for polygon in polygons for point in polygon]
+    all_y = [point_xy(point)[1] for polygon in polygons for point in polygon]
     return min(all_x) - margin, max(all_x) + margin, min(all_y) - margin, max(all_y) + margin
 
 
 def build_winding_field(
-    polygon: list[PointTuple],
+    polygon: list[PointLike],
     bounds: tuple[float, float, float, float],
     resolution: int = 220,
     discrete: bool = False,

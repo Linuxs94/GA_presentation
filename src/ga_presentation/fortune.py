@@ -23,6 +23,7 @@ class FortuneSnapshot:
     arc_sites: list[PointTuple]
     beachline: list[list[PointTuple]]
     finished_segments: list[tuple[PointTuple, PointTuple]]
+    active_segments: list[tuple[PointTuple, PointTuple]]
     voronoi_dual_pairs: list[dict[str, object]]
     delaunay_edges: list[tuple[PointTuple, PointTuple]]
     active_circle_center: PointTuple | None
@@ -266,6 +267,7 @@ class FortuneVoronoi:
             arc = arc.next
 
         finished_segments: list[tuple[PointTuple, PointTuple]] = []
+        active_segments: list[tuple[PointTuple, PointTuple]] = []
         voronoi_dual_pairs: list[dict[str, object]] = []
         for segment in self.output:
             if segment.end is not None:
@@ -277,6 +279,19 @@ class FortuneVoronoi:
                             "dual": tuple(sorted((segment.left.as_tuple(), segment.right.as_tuple()))),
                         }
                     )
+
+        seen_segment_ids: set[int] = set()
+        arc = self.root_arc
+        while arc is not None and arc.next is not None:
+            segment = arc.right_segment
+            if segment is not None and segment.end is None and id(segment) not in seen_segment_ids:
+                seen_segment_ids.add(id(segment))
+                try:
+                    breakpoint = self._parabola_intersection(arc.site, arc.next.site, sweep_x)
+                    active_segments.append((segment.start.as_tuple(), breakpoint.as_tuple()))
+                except ZeroDivisionError:
+                    pass
+            arc = arc.next
 
         delaunay_edges: set[tuple[PointTuple, PointTuple]] = set()
         for a, b, c in self.triangles:
@@ -309,6 +324,7 @@ class FortuneVoronoi:
                 arc_sites=arc_sites,
                 beachline=self.beachline_polylines(sweep_x),
                 finished_segments=finished_segments,
+                active_segments=active_segments,
                 voronoi_dual_pairs=voronoi_dual_pairs,
                 delaunay_edges=sorted(delaunay_edges),
                 active_circle_center=active_circle_center,

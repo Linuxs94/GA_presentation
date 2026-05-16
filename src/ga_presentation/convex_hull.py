@@ -3,28 +3,30 @@ from __future__ import annotations
 from dataclasses import dataclass
 import math
 
+from .structures import Point
 
 PointTuple = tuple[float, float]
+PointLike = Point | PointTuple
 
 
 @dataclass
 class HullSnapshot:
-    pivot: PointTuple
-    sorted_points: list[PointTuple]
+    pivot: PointLike
+    sorted_points: list[PointLike]
     action: str
-    candidate: PointTuple
-    stack_before: list[PointTuple]
-    stack: list[PointTuple]
-    test_points: tuple[PointTuple, PointTuple, PointTuple] | None
+    candidate: PointLike
+    stack_before: list[PointLike]
+    stack: list[PointLike]
+    test_points: tuple[PointLike, PointLike, PointLike] | None
     orientation_value: float | None
 
 
-def orientation(a: PointTuple, b: PointTuple, c: PointTuple) -> float:
+def orientation(a: PointLike, b: PointLike, c: PointLike) -> float:
     return (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])
 
 
-def graham_scan(points: list[PointTuple]) -> tuple[list[PointTuple], list[HullSnapshot]]:
-    unique_points = sorted(set(points))
+def graham_scan(points: list[PointLike]) -> tuple[list[PointLike], list[HullSnapshot]]:
+    unique_points = sorted(set(points), key=lambda point: (point[0], point[1]))
     if len(unique_points) < 3:
         return unique_points[:], [
             HullSnapshot(point, unique_points[:], "seed", point, [], [point], None, None)
@@ -33,7 +35,7 @@ def graham_scan(points: list[PointTuple]) -> tuple[list[PointTuple], list[HullSn
 
     pivot = min(unique_points, key=lambda point: (point[1], point[0]))
 
-    def polar_angle(point: PointTuple) -> float:
+    def polar_angle(point: PointLike) -> float:
         return math.atan2(point[1] - pivot[1], point[0] - pivot[0])
 
     sorted_points = [pivot] + sorted(
@@ -41,7 +43,7 @@ def graham_scan(points: list[PointTuple]) -> tuple[list[PointTuple], list[HullSn
         key=lambda point: (polar_angle(point), math.dist(pivot, point)),
     )
 
-    stack: list[PointTuple] = []
+    stack: list[PointLike] = []
     snapshots: list[HullSnapshot] = []
 
     for point in sorted_points:
