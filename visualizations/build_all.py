@@ -18,7 +18,7 @@ SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
-from ga_presentation.convex_hull import HullSnapshot, graham_scan
+from ga_presentation.convex_hull import HullSnapshot, monotone_chain
 from ga_presentation.datasets import (
     load_repo_polygons,
     regular_polygon,
@@ -213,7 +213,7 @@ def render_hull_snapshot(ax: plt.Axes, points: list[tuple[float, float]], snapsh
 
 
 def save_convex_hull_assets(points: list[tuple[float, float]]) -> tuple[list[tuple[float, float]], list[HullSnapshot]]:
-    hull, snapshots = graham_scan(points)
+    hull, snapshots = monotone_chain(points)
     bounds = bounds_from_points(points, padding=1.0)
     indices = choose_snapshots(snapshots)
     fig, axes = plt.subplots(2, 2, figsize=(14, 10))

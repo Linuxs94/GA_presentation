@@ -6,16 +6,16 @@ SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
-from ga_presentation.convex_hull import graham_scan
+from ga_presentation.convex_hull import monotone_chain
 from ga_presentation.datasets import regular_polygon
 from ga_presentation.fortune import compute_voronoi
 from ga_presentation.structures import Point
 from ga_presentation.winding import build_winding_field, winding_number
 
 
-def test_graham_scan_keeps_outer_points():
+def test_monotone_chain_keeps_outer_points():
     points = [(0, 0), (2, 0), (2, 2), (0, 2), (1, 1)]
-    hull, snapshots = graham_scan(points)
+    hull, snapshots = monotone_chain(points)
     assert {tuple(point) for point in hull} == {(0, 0), (2, 0), (2, 2), (0, 2)}
     assert len(snapshots) > 0
 

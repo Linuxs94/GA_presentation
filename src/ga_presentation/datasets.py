@@ -9,6 +9,7 @@ from .structures import Point
 PointTuple = tuple[float, float]
 PointLike = Point | PointTuple
 
+# This file is used to create geometrical shapes
 
 def read_polygon(path: str | Path) -> list[Point]:
     polygon: list[Point] = []

@@ -4,7 +4,7 @@
 
 The main teaching surface of this branch is the interactive viewer:
 
-- [apps/interactive_viewer.py](/Users/edu/Desktop/USI/semestre 1/GA/GA_presentation/GA_presentation/apps/interactive_viewer.py)
+- [apps/interactive_viewer.py](/Users/linus/Documents/master/primavera_2026/Geometric algorithms/projects/GA_presentation/apps/interactive_viewer.py)
 - run with `python presentation.py --interactive`
 
 The static figures below are supporting material for the report and slides.
@@ -42,42 +42,42 @@ The static figures below are supporting material for the report and slides.
 
 ### Project inputs
 
-![Project inputs](/Users/edu/Desktop/USI/semestre 1/GA/GA_presentation/GA_presentation/report/figures/project_inputs.png)
+![Project inputs](/Users/linus/Documents/master/primavera_2026/Geometric algorithms/projects/GA_presentation/report/figures/project_inputs.png)
 
 ### Random point generation modes
 
-![Random inputs](/Users/edu/Desktop/USI/semestre 1/GA/GA_presentation/GA_presentation/report/figures/random_input_modes.png)
+![Random inputs](/Users/linus/Documents/master/primavera_2026/Geometric algorithms/projects/GA_presentation/report/figures/random_input_modes.png)
 
 ### Winding number: input / process / output
 
-![Winding number](/Users/edu/Desktop/USI/semestre 1/GA/GA_presentation/GA_presentation/report/figures/winding_input_process_output.png)
+![Winding number](/Users/linus/Documents/master/primavera_2026/Geometric algorithms/projects/GA_presentation/report/figures/winding_input_process_output.png)
 
 ### Winding trace snapshots
 
-![Winding trace](/Users/edu/Desktop/USI/semestre 1/GA/GA_presentation/GA_presentation/report/figures/winding_trace_snapshots.png)
+![Winding trace](/Users/linus/Documents/master/primavera_2026/Geometric algorithms/projects/GA_presentation/report/figures/winding_trace_snapshots.png)
 
 ### Convex hull snapshots
 
-![Convex hull](/Users/edu/Desktop/USI/semestre 1/GA/GA_presentation/GA_presentation/report/figures/convex_hull_snapshots.png)
+![Convex hull](/Users/linus/Documents/master/primavera_2026/Geometric algorithms/projects/GA_presentation/report/figures/convex_hull_snapshots.png)
 
 ### Fortune sweep snapshots
 
-![Fortune sweep](/Users/edu/Desktop/USI/semestre 1/GA/GA_presentation/GA_presentation/report/figures/fortune_sweep_snapshots.png)
+![Fortune sweep](/Users/linus/Documents/master/primavera_2026/Geometric algorithms/projects/GA_presentation/report/figures/fortune_sweep_snapshots.png)
 
 ### Final Voronoi and Delaunay outputs
 
-![Voronoi and Delaunay](/Users/edu/Desktop/USI/semestre 1/GA/GA_presentation/GA_presentation/report/figures/voronoi_and_delaunay_outputs.png)
+![Voronoi and Delaunay](/Users/linus/Documents/master/primavera_2026/Geometric algorithms/projects/GA_presentation/report/figures/voronoi_and_delaunay_outputs.png)
 
 ### Delaunay derived from Voronoi duality
 
-![Voronoi duality](/Users/edu/Desktop/USI/semestre 1/GA/GA_presentation/GA_presentation/report/figures/delaunay_from_voronoi_duality.png)
+![Voronoi duality](/Users/linus/Documents/master/primavera_2026/Geometric algorithms/projects/GA_presentation/report/figures/delaunay_from_voronoi_duality.png)
 
 ## Animations
 
-- [Convex hull growth GIF](/Users/edu/Desktop/USI/semestre 1/GA/GA_presentation/GA_presentation/report/animations/convex_hull_growth.gif)
-- [Fortune sweep GIF](/Users/edu/Desktop/USI/semestre 1/GA/GA_presentation/GA_presentation/report/animations/fortune_sweep.gif)
-- [Voronoi edges appearing GIF](/Users/edu/Desktop/USI/semestre 1/GA/GA_presentation/GA_presentation/report/animations/voronoi_edges_appearing.gif)
-- [Delaunay dual edges GIF](/Users/edu/Desktop/USI/semestre 1/GA/GA_presentation/GA_presentation/report/animations/delaunay_dual_edges.gif)
+- [Convex hull growth GIF](/Users/linus/Documents/master/primavera_2026/Geometric algorithms/projects/GA_presentation/report/animations/convex_hull_growth.gif)
+- [Fortune sweep GIF](/Users/linus/Documents/master/primavera_2026/Geometric algorithms/projects/GA_presentation/report/animations/fortune_sweep.gif)
+- [Voronoi edges appearing GIF](/Users/linus/Documents/master/primavera_2026/Geometric algorithms/projects/GA_presentation/report/animations/voronoi_edges_appearing.gif)
+- [Delaunay dual edges GIF](/Users/linus/Documents/master/primavera_2026/Geometric algorithms/projects/GA_presentation/report/animations/delaunay_dual_edges.gif)
 
 ## Summary
 

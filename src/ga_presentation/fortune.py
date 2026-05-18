@@ -74,7 +74,8 @@ class FortuneVoronoi:
         self.processed_sites.append(site.as_tuple())
         self._insert_arc(site)
         if capture:
-            self._capture_snapshot("site", site.x, site.as_tuple(), action_summary=f"insert site at {site.as_tuple()}")
+            self._capture_snapshot("site", round(site.x, 2), tuple(round(v, 2) for v in site.as_tuple()), action_summary=f"insert site at {tuple(round(v, 2) for v in site.as_tuple())}")
+
 
     def _process_circle_event(self, capture: bool) -> None:
         event = self.circle_events.pop()
@@ -117,7 +118,8 @@ class FortuneVoronoi:
                 active_circle_center=event.center.as_tuple(),
                 active_circle_radius=circle_radius,
                 active_circle_sites=circle_sites,
-                action_summary=f"remove disappearing arc at {event.center.as_tuple()}",
+                action_summary=f"remove disappearing arc at {tuple(round(v, 2) for v in event.center.as_tuple())}"
+,
             )
 
     def _insert_arc(self, site: Point) -> None:

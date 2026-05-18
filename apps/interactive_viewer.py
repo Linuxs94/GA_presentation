@@ -15,7 +15,7 @@ SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
-from ga_presentation.convex_hull import graham_scan, orientation
+from ga_presentation.convex_hull import monotone_chain, orientation
 from ga_presentation.datasets import (
     load_repo_polygons,
     sample_gaussian_clusters,
@@ -222,7 +222,7 @@ def build_scenarios(point_mode: str, count: int, seed: int, custom_points: list[
     winding_polygon = star_polygon((0.0, 0.0), 2.1, 5.0, 5)
     winding_query = (0.2, 0.25)
     winding_bounds = compute_bounds([winding_polygon], margin=1.0)
-    hull, hull_steps = graham_scan(points)
+    hull, hull_steps = monotone_chain(points)
     if points:
         bounds = (
             min(point[0] for point in points) - 1.0,
