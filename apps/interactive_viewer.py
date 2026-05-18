@@ -711,7 +711,7 @@ def fortune_figure(state: dict[str, object], step: int, mode: str) -> tuple[go.F
                 )
             )
 
-    if mode in {"fortune", "delaunay", "duality"}:
+    if mode in {"delaunay", "duality"}:
         for start, end in snapshot.delaunay_edges:
             fig.add_trace(
                 go.Scatter(
