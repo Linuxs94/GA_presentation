@@ -662,7 +662,6 @@ def fortune_figure(state: dict[str, object], step: int, mode: str) -> tuple[go.F
     title = {
         "fortune": "Fortune Sweep",
         "voronoi": "Voronoi Edges Appearing",
-        "delaunay": "Delaunay Dual Edges",
         "duality": "Voronoi -> Delaunay Duality",
     }[mode]
     fig = go.Figure(layout=base_layout(title))
@@ -982,8 +981,6 @@ def launch() -> gr.Blocks:
                         ("Winding Number (Closed)", "winding_closed"),
                         ("Winding Number (Open)", "winding_open"),
                         ("Fortune Sweep", "fortune"),
-                        ("Voronoi Growth", "voronoi"),
-                        ("Delaunay Dual Edges", "delaunay"),
                         ("Voronoi -> Delaunay Duality", "duality"),
                     ],
                     value="convex_hull",

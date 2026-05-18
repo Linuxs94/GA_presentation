@@ -76,7 +76,6 @@ The static figures below are supporting material for the report and slides.
 
 - [Convex hull growth GIF]( "report" / "animations" / "convex_hull_growth.gif").as_posix())
 - [Fortune sweep GIF]( "report" / "animations" / "fortune_sweep.gif").as_posix())
-- [Voronoi edges appearing GIF]( "report" / "animations" / "voronoi_edges_appearing.gif").as_posix())
 - [Delaunay dual edges GIF]( "report" / "animations" / "delaunay_dual_edges.gif").as_posix())
 
 ## Summary
