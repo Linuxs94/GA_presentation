@@ -835,7 +835,7 @@ def algorithm_info(algorithm: str, state: dict[str, object]) -> tuple[int, str]:
         label = "Open winding number: the final closing edge is excluded."
     else:
         total = max(1, len(state["fortune"].snapshots))
-        label = "Fortune / Voronoi / Delaunay: all four views share the same event-by-event snapshot sequence."
+        label = "Fortune / Voronoi : all views share the same event-by-event snapshot sequence."
     return total, label
 
 
