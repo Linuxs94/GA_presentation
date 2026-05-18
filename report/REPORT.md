@@ -4,7 +4,7 @@
 
 The main teaching surface of this branch is the interactive viewer:
 
-- [apps/interactive_viewer.py](/Users/linus/Documents/master/primavera_2026/Geometric algorithms/projects/GA_presentation/apps/interactive_viewer.py)
+- [apps/interactive_viewer.py]("apps" / "interactive_viewer.py".as_posix())
 - run with `python presentation.py --interactive`
 
 The static figures below are supporting material for the report and slides.
@@ -42,42 +42,42 @@ The static figures below are supporting material for the report and slides.
 
 ### Project inputs
 
-![Project inputs](/Users/linus/Documents/master/primavera_2026/Geometric algorithms/projects/GA_presentation/report/figures/project_inputs.png)
+![Project inputs]( "report" / "figures" / "project_inputs.png").as_posix())
 
 ### Random point generation modes
 
-![Random inputs](/Users/linus/Documents/master/primavera_2026/Geometric algorithms/projects/GA_presentation/report/figures/random_input_modes.png)
+![Random inputs]( "report" / "figures" / "random_input_modes.png").as_posix())
 
 ### Winding number: input / process / output
 
-![Winding number](/Users/linus/Documents/master/primavera_2026/Geometric algorithms/projects/GA_presentation/report/figures/winding_input_process_output.png)
+![Winding number]( "report" / "figures" / "winding_input_process_output.png").as_posix())
 
 ### Winding trace snapshots
 
-![Winding trace](/Users/linus/Documents/master/primavera_2026/Geometric algorithms/projects/GA_presentation/report/figures/winding_trace_snapshots.png)
+![Winding trace]( "report" / "figures" / "winding_trace_snapshots.png").as_posix())
 
 ### Convex hull snapshots
 
-![Convex hull](/Users/linus/Documents/master/primavera_2026/Geometric algorithms/projects/GA_presentation/report/figures/convex_hull_snapshots.png)
+![Convex hull]( "report" / "figures" / "convex_hull_snapshots.png").as_posix())
 
 ### Fortune sweep snapshots
 
-![Fortune sweep](/Users/linus/Documents/master/primavera_2026/Geometric algorithms/projects/GA_presentation/report/figures/fortune_sweep_snapshots.png)
+![Fortune sweep]( "report" / "figures" / "fortune_sweep_snapshots.png").as_posix())
 
 ### Final Voronoi and Delaunay outputs
 
-![Voronoi and Delaunay](/Users/linus/Documents/master/primavera_2026/Geometric algorithms/projects/GA_presentation/report/figures/voronoi_and_delaunay_outputs.png)
+![Voronoi and Delaunay]( "report" / "figures" / "voronoi_and_delaunay_outputs.png").as_posix())
 
 ### Delaunay derived from Voronoi duality
 
-![Voronoi duality](/Users/linus/Documents/master/primavera_2026/Geometric algorithms/projects/GA_presentation/report/figures/delaunay_from_voronoi_duality.png)
+![Voronoi duality]( "report" / "figures" / "delaunay_from_voronoi_duality.png").as_posix())
 
 ## Animations
 
-- [Convex hull growth GIF](/Users/linus/Documents/master/primavera_2026/Geometric algorithms/projects/GA_presentation/report/animations/convex_hull_growth.gif)
-- [Fortune sweep GIF](/Users/linus/Documents/master/primavera_2026/Geometric algorithms/projects/GA_presentation/report/animations/fortune_sweep.gif)
-- [Voronoi edges appearing GIF](/Users/linus/Documents/master/primavera_2026/Geometric algorithms/projects/GA_presentation/report/animations/voronoi_edges_appearing.gif)
-- [Delaunay dual edges GIF](/Users/linus/Documents/master/primavera_2026/Geometric algorithms/projects/GA_presentation/report/animations/delaunay_dual_edges.gif)
+- [Convex hull growth GIF]( "report" / "animations" / "convex_hull_growth.gif").as_posix())
+- [Fortune sweep GIF]( "report" / "animations" / "fortune_sweep.gif").as_posix())
+- [Voronoi edges appearing GIF]( "report" / "animations" / "voronoi_edges_appearing.gif").as_posix())
+- [Delaunay dual edges GIF]( "report" / "animations" / "delaunay_dual_edges.gif").as_posix())
 
 ## Summary
 
