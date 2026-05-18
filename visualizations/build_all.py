@@ -14,7 +14,7 @@ import numpy as np
 
 
 ROOT = Path(__file__).resolve().parents[1]
-SRC = ROOT / "src"
+SRC =  "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
@@ -31,9 +31,9 @@ from ga_presentation.fortune import FortuneSnapshot, compute_voronoi
 from ga_presentation.winding import build_winding_field, compute_bounds, polygon_edges, winding_trace
 
 
-FIGURES_DIR = ROOT / "report" / "figures"
-ANIMATIONS_DIR = ROOT / "report" / "animations"
-SUMMARY_PATH = ROOT / "report" / "summary.json"
+FIGURES_DIR =  "report" / "figures"
+ANIMATIONS_DIR =  "report" / "animations"
+SUMMARY_PATH =  "report" / "summary.json"
 
 
 def ensure_dirs() -> None:
@@ -441,7 +441,7 @@ def write_report(summary: dict[str, object]) -> None:
 
 The main teaching surface of this branch is the interactive viewer:
 
-- [apps/interactive_viewer.py]({(ROOT / "apps" / "interactive_viewer.py").as_posix()})
+- [apps/interactive_viewer.py]({( "apps" / "interactive_viewer.py").as_posix()})
 - run with `python presentation.py --interactive`
 
 The static figures below are supporting material for the report and slides.
@@ -479,42 +479,42 @@ The static figures below are supporting material for the report and slides.
 
 ### Project inputs
 
-![Project inputs]({(ROOT / "report" / "figures" / "project_inputs.png").as_posix()})
+![Project inputs]({( "report" / "figures" / "project_inputs.png").as_posix()})
 
 ### Random point generation modes
 
-![Random inputs]({(ROOT / "report" / "figures" / "random_input_modes.png").as_posix()})
+![Random inputs]({( "report" / "figures" / "random_input_modes.png").as_posix()})
 
 ### Winding number: input / process / output
 
-![Winding number]({(ROOT / "report" / "figures" / "winding_input_process_output.png").as_posix()})
+![Winding number]({( "report" / "figures" / "winding_input_process_output.png").as_posix()})
 
 ### Winding trace snapshots
 
-![Winding trace]({(ROOT / "report" / "figures" / "winding_trace_snapshots.png").as_posix()})
+![Winding trace]({( "report" / "figures" / "winding_trace_snapshots.png").as_posix()})
 
 ### Convex hull snapshots
 
-![Convex hull]({(ROOT / "report" / "figures" / "convex_hull_snapshots.png").as_posix()})
+![Convex hull]({( "report" / "figures" / "convex_hull_snapshots.png").as_posix()})
 
 ### Fortune sweep snapshots
 
-![Fortune sweep]({(ROOT / "report" / "figures" / "fortune_sweep_snapshots.png").as_posix()})
+![Fortune sweep]({( "report" / "figures" / "fortune_sweep_snapshots.png").as_posix()})
 
 ### Final Voronoi and Delaunay outputs
 
-![Voronoi and Delaunay]({(ROOT / "report" / "figures" / "voronoi_and_delaunay_outputs.png").as_posix()})
+![Voronoi and Delaunay]({( "report" / "figures" / "voronoi_and_delaunay_outputs.png").as_posix()})
 
 ### Delaunay derived from Voronoi duality
 
-![Voronoi duality]({(ROOT / "report" / "figures" / "delaunay_from_voronoi_duality.png").as_posix()})
+![Voronoi duality]({( "report" / "figures" / "delaunay_from_voronoi_duality.png").as_posix()})
 
 ## Animations
 
-- [Convex hull growth GIF]({(ROOT / "report" / "animations" / "convex_hull_growth.gif").as_posix()})
-- [Fortune sweep GIF]({(ROOT / "report" / "animations" / "fortune_sweep.gif").as_posix()})
-- [Voronoi edges appearing GIF]({(ROOT / "report" / "animations" / "voronoi_edges_appearing.gif").as_posix()})
-- [Delaunay dual edges GIF]({(ROOT / "report" / "animations" / "delaunay_dual_edges.gif").as_posix()})
+- [Convex hull growth GIF]({( "report" / "animations" / "convex_hull_growth.gif").as_posix()})
+- [Fortune sweep GIF]({( "report" / "animations" / "fortune_sweep.gif").as_posix()})
+- [Voronoi edges appearing GIF]({( "report" / "animations" / "voronoi_edges_appearing.gif").as_posix()})
+- [Delaunay dual edges GIF]({( "report" / "animations" / "delaunay_dual_edges.gif").as_posix()})
 
 ## Summary
 
@@ -522,7 +522,7 @@ The static figures below are supporting material for the report and slides.
 {json.dumps(summary, indent=2)}
 ```
 """
-    (ROOT / "report" / "REPORT.md").write_text(report_text, encoding="utf-8")
+    ( "report" / "REPORT.md").write_text(report_text, encoding="utf-8")
 
 
 def main() -> None:

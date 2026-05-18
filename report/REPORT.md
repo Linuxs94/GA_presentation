@@ -87,7 +87,7 @@ The static figures below are supporting material for the report and slides.
   "gaussian_point_count": 18,
   "boundary_point_count": 16,
   "convex_hull_vertices": 7,
-  "convex_hull_snapshots": 21,
+  "convex_hull_snapshots": 46,
   "fortune_snapshots": 34,
   "voronoi_segment_count": 45,
   "delaunay_edge_count": 32
