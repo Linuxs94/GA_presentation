@@ -25,7 +25,7 @@ The static figures below are supporting material for the report and slides.
 
 ### Convex Hull
 - Input: a set of points
-- Process: Graham scan sorts points by polar angle and removes clockwise turns
+- Process: Monotone Chain sorts points by X-coordinates and builds upper/lower chains
 - Output: the outer hull polygon
 
 ### Fortune Sweep

@@ -362,7 +362,7 @@ def hull_structure_html(state: dict[str, object], step: int) -> str:
     if hull:
         body += "<h4>Final Hull (when done)</h4>"
         body += chips([names[point] for point in hull])
-    return panel("Graham Scan State", body)
+    return panel("Monotone Chain State", body)
 
 
 def winding_structure_html(state: dict[str, object], step: int, closed: bool) -> str:
@@ -481,11 +481,11 @@ def explanation_html(title: str, paragraphs: list[str]) -> str:
 def hull_figure(state: dict[str, object], step: int) -> tuple[go.Figure, str, str]:
     points = state["points"]
     if not points:
-        fig = go.Figure(layout=base_layout("Convex Hull: Graham Scan"))
+        fig = go.Figure(layout=base_layout("Convex Hull: Monotone Chain"))
         fig.update_xaxes(range=[EDITOR_BOUNDS[0], EDITOR_BOUNDS[1]])
         fig.update_yaxes(range=[EDITOR_BOUNDS[2], EDITOR_BOUNDS[3]])
         add_state_annotation(fig, "Current Geometry", ["no points yet", "use the point editor to add a custom set"])
-        return fig, panel("Graham Scan State", list_block(["No points available. Add points in the editor."])), explanation_html("What is happening now", ["The hull view needs points. Click in the editor to create a custom set."])
+        return fig, panel("Monotone Chain State", list_block(["No points available. Add points in the editor."])), explanation_html("What is happening now", ["The hull view needs points. Click in the editor to create a custom set."])
     names = make_point_names(points)
     snapshots = state["hull_steps"]
     hull = state["hull"]
@@ -497,7 +497,7 @@ def hull_figure(state: dict[str, object], step: int) -> tuple[go.Figure, str, st
         max(point[1] for point in points) + 1.0,
     )
 
-    fig = go.Figure(layout=base_layout("Convex Hull: Graham Scan"))
+    fig = go.Figure(layout=base_layout("Convex Hull: Monotone Chain"))
     fig.update_xaxes(range=[bounds[0], bounds[1]])
     fig.update_yaxes(range=[bounds[2], bounds[3]])
     fig.add_trace(scatter_points(points, names))

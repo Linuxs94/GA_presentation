@@ -193,7 +193,7 @@ def save_winding_figure(polygon: list[tuple[float, float]]) -> None:
 
 def render_hull_snapshot(ax: plt.Axes, points: list[tuple[float, float]], snapshot: HullSnapshot, bounds: tuple[float, float, float, float]) -> None:
     ax.clear()
-    set_axes(ax, f"Graham scan: {snapshot.action}", bounds)
+    set_axes(ax, f"Monotone Chain convex hull: {snapshot.action}", bounds)
     draw_points(ax, points)
     draw_point_labels(ax, points)
     if snapshot.stack:
@@ -462,7 +462,7 @@ The static figures below are supporting material for the report and slides.
 
 ### Convex Hull
 - Input: a set of points
-- Process: Graham scan sorts points by polar angle and removes clockwise turns
+- Process: Monotone Chain sorts points by X-coordinates and builds upper/lower chains
 - Output: the outer hull polygon
 
 ### Fortune Sweep
