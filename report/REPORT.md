@@ -44,10 +44,6 @@ The static figures below are supporting material for the report and slides.
 
 ![Project inputs]( "report" / "figures" / "project_inputs.png").as_posix())
 
-### Random point generation modes
-
-![Random inputs]( "report" / "figures" / "random_input_modes.png").as_posix())
-
 ### Winding number: input / process / output
 
 ![Winding number]( "report" / "figures" / "winding_input_process_output.png").as_posix())
@@ -82,13 +78,14 @@ The static figures below are supporting material for the report and slides.
 
 ```json
 {
-  "uniform_point_count": 14,
-  "gaussian_point_count": 18,
-  "boundary_point_count": 16,
-  "convex_hull_vertices": 7,
-  "convex_hull_snapshots": 46,
-  "fortune_snapshots": 34,
-  "voronoi_segment_count": 45,
-  "delaunay_edge_count": 32
+  "uniform_point_count": 6,
+  "gaussian_point_count": 6,
+  "boundary_point_count": 6,
+  "convex_hull_vertices": 5,
+  "convex_hull_snapshots": 16,
+  "fortune_snapshots": 12,
+  "voronoi_segment_count": 15,
+  "delaunay_edge_count": 10,
+  "filtered_delaunay_edge_count": 3
 }
 ```

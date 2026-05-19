@@ -18,6 +18,7 @@ SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
+from ga_presentation.winding import winding_number
 from ga_presentation.convex_hull import HullSnapshot, monotone_chain
 from ga_presentation.datasets import (
     load_repo_polygons,
@@ -103,29 +104,6 @@ def choose_snapshots(items: list[object], count: int = 4) -> list[int]:
     raw = [0, len(items) // 3, (2 * len(items)) // 3, len(items) - 1]
     return sorted(set(index for index in raw if 0 <= index < len(items)))[:count]
 
-
-def save_random_generators_figure(
-    uniform_points: list[tuple[float, float]],
-    gaussian_points: list[tuple[float, float]],
-    boundary_points: list[tuple[float, float]],
-    boundary_polygon: list[tuple[float, float]],
-) -> None:
-    fig, axes = plt.subplots(1, 3, figsize=(14, 4.5))
-
-    for ax, points, title in zip(
-        axes,
-        [uniform_points, gaussian_points, boundary_points],
-        ["Uniform random points", "Gaussian clusters", "Points sampled on polygon boundary"],
-    ):
-        bounds = bounds_from_points(points, padding=1.0)
-        set_axes(ax, title, bounds)
-        draw_points(ax, points)
-        if title.endswith("boundary"):
-            draw_polyline(ax, boundary_polygon + [boundary_polygon[0]], "#1f77b4")
-
-    plt.tight_layout()
-    plt.savefig(FIGURES_DIR / "random_input_modes.png", dpi=220, bbox_inches="tight")
-    plt.close(fig)
 
 
 def save_winding_figure(polygon: list[tuple[float, float]]) -> None:
@@ -353,8 +331,19 @@ def render_fortune_snapshot(
             ax.plot([start[0], end[0]], [start[1], end[1]], color="#52b788", linewidth=1.6, linestyle=":")
 
     if show_delaunay:
-        for start, end in snapshot.delaunay_edges:
-            ax.plot([start[0], end[0]], [start[1], end[1]], color="#264653", linewidth=1.2)
+        edges = getattr(snapshot, "filtered_delaunay_edges", None)
+
+        # fallback se non esiste il filtro
+        if edges is None:
+            edges = snapshot.delaunay_edges
+
+        for start, end in edges:
+            ax.plot(
+                [start[0], end[0]],
+                [start[1], end[1]],
+                color="#1C566D",
+                linewidth=1.2
+            )
     draw_point_labels(ax, points)
     add_state_box(
         ax,
@@ -400,6 +389,16 @@ def save_fortune_assets(
     fig, ax = plt.subplots(figsize=(7, 7))
 
     final_snapshot = snapshots[-1]
+
+    # Voronoi + delaunay
+    fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+    render_fortune_snapshot(axes[0], final_snapshot, points, bounds, True, False, False, False)
+    axes[0].set_title("Output: final Voronoi edges")
+    render_fortune_snapshot(axes[1], final_snapshot, points, bounds, False, True, False, False)
+    axes[1].set_title("Output: Delaunay dual edges")
+    plt.tight_layout()
+    plt.savefig(FIGURES_DIR / "voronoi_and_delaunay_outputs.png", dpi=220, bbox_inches="tight")
+    plt.close(fig)
 
     duality_pairs = sorted(
         final_snapshot.voronoi_dual_pairs,
@@ -510,10 +509,6 @@ The static figures below are supporting material for the report and slides.
 
 ![Project inputs]( "report" / "figures" / "project_inputs.png").as_posix())
 
-### Random point generation modes
-
-![Random inputs]( "report" / "figures" / "random_input_modes.png").as_posix())
-
 ### Winding number: input / process / output
 
 ![Winding number]( "report" / "figures" / "winding_input_process_output.png").as_posix())
@@ -556,30 +551,120 @@ The static figures below are supporting material for the report and slides.
 def main() -> None:
     ensure_dirs()
     polygons = load_repo_polygons(ROOT)
-    save_project_overview(polygons)
-
     uniform_points = sample_uniform_points(14, (0.0, 10.0, 0.0, 10.0), seed=4)
-    gaussian_points = sample_gaussian_clusters(18, [(2.5, 2.5), (7.5, 3.0), (5.0, 8.0)], sigma=0.8, seed=9)
-    boundary_points = sample_polygon_boundary(polygons["p1"], 16, seed=12)
-    save_random_generators_figure(uniform_points, gaussian_points, boundary_points, polygons["p1"])
+    gaussian_points = sample_gaussian_clusters(18,[(2.5, 2.5),(7.5, 3.0), (5.0, 8.0)], sigma=0.8,seed=9)
 
     winding_shape = star_polygon((0.0, 0.0), 2.1, 5.0, 5)
-    save_winding_figure(polygons["p2"])
 
-    hull, hull_steps = save_convex_hull_assets(uniform_points)
-    fortune_bounds = bounds_from_points(uniform_points, padding=1.0)
-    fortune_snapshots, final_fortune = save_fortune_assets(uniform_points, fortune_bounds)
+    choosen_shape = polygons["p2"]
+
+    boundary_points = sample_polygon_boundary(choosen_shape, 16, seed=12)
+    save_project_overview(polygons)
+    save_winding_figure(choosen_shape)
+
+    hull, hull_steps = save_convex_hull_assets(choosen_shape)
+    fortune_bounds = bounds_from_points(choosen_shape, padding=1.0)
+    fortune_snapshots, final_fortune = save_fortune_assets(choosen_shape, fortune_bounds)
 
     summary = {
-        "uniform_point_count": len(uniform_points),
-        "gaussian_point_count": len(gaussian_points),
-        "boundary_point_count": len(boundary_points),
+        "uniform_point_count": len(choosen_shape),
+        "gaussian_point_count": len(choosen_shape),
+        "boundary_point_count": len(choosen_shape),
         "convex_hull_vertices": len(hull),
         "convex_hull_snapshots": len(hull_steps),
         "fortune_snapshots": len(fortune_snapshots),
         "voronoi_segment_count": len(final_fortune.finished_segments),
         "delaunay_edge_count": len(final_fortune.delaunay_edges),
     }
+    filtered_edges = []
+
+    for a, b in final_fortune.delaunay_edges:
+        a = np.array(a)
+        b = np.array(b)
+
+        m = (a + b) * 0.5
+
+        wn = winding_number(m, choosen_shape, closed=True)
+
+        if abs(wn) >= 0.5:
+            filtered_edges.append((tuple(a), tuple(b)))
+
+    summary.update({
+        "filtered_delaunay_edge_count": len(filtered_edges),
+    })
+
+    final_fortune.inner_delaunay_edges = filtered_edges
+
+    # plot final filtered 
+    fig, axes = plt.subplots(1, 2, figsize=(14, 6))
+
+    ax_raw, ax_filtered = axes
+
+    bounds = fortune_bounds
+    points = uniform_points
+
+    # no filter
+    render_fortune_snapshot(
+        ax_raw,
+        final_fortune,
+        points,
+        bounds,
+        show_voronoi=False,
+        show_beachline=False,
+        show_sweep=False,
+        show_delaunay=True
+    )
+
+    # boundary winding number
+    draw_polyline(
+        ax_raw,
+        choosen_shape + [choosen_shape[0]],
+        "#000000",
+        linewidth=2.5
+    )
+
+    ax_raw.set_title("Delaunay (no filter)")
+
+
+    # filtered
+    render_fortune_snapshot(
+        ax_filtered,
+        final_fortune,
+        points,
+        bounds,
+        show_delaunay=False,
+        show_beachline=False,
+        show_sweep=False,
+        show_voronoi=False
+    )
+
+    # boundary winding number
+    draw_polyline(
+        ax_filtered,
+        choosen_shape + [choosen_shape[0]],
+        "#000000",
+        linewidth=2.5
+    )
+
+    # filtered delaunay edges (inside)
+    for a, b in filtered_edges:
+        ax_filtered.plot(
+            [a[0], b[0]],
+            [a[1], b[1]],
+            color="#264653",
+            linewidth=1.2
+        )
+
+    ax_filtered.set_title("Delaunay (filtered) + boundary")
+    plt.tight_layout()
+    plt.savefig(
+        FIGURES_DIR / "delaunay_filtered_comparison.png",
+        dpi=220,
+        bbox_inches="tight"
+    )
+    plt.close(fig)
+
+
     SUMMARY_PATH.write_text(json.dumps(summary, indent=2), encoding="utf-8")
     write_report(summary)
 
