@@ -564,7 +564,7 @@ def main() -> None:
     save_random_generators_figure(uniform_points, gaussian_points, boundary_points, polygons["p1"])
 
     winding_shape = star_polygon((0.0, 0.0), 2.1, 5.0, 5)
-    save_winding_figure(winding_shape)
+    save_winding_figure(polygons["p2"])
 
     hull, hull_steps = save_convex_hull_assets(uniform_points)
     fortune_bounds = bounds_from_points(uniform_points, padding=1.0)

@@ -76,14 +76,25 @@ def build_winding_field(
     discrete: bool = False,
     closed: bool = True,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+
+    #cluster center
     min_x, max_x, min_y, max_y = bounds
     xs = np.linspace(min_x, max_x, resolution)
     ys = np.linspace(min_y, max_y, resolution)
     field = np.zeros((resolution, resolution))
 
+    # computer cluster center
+    poly_pts = [point_xy(pt) for pt in polygon]
+    cx = float(np.mean([pt[0] for pt in poly_pts])) if poly_pts else 0.0
+    cy = float(np.mean([pt[1] for pt in poly_pts])) if poly_pts else 0.0
+
     for row, y in enumerate(ys):
         for column, x in enumerate(xs):
-            winding = winding_number((x, y), polygon, closed=closed)
+            # translate point and poligon
+            target_point = (x - cx, y - cy)
+            translated_polygon = [(pt[0] - cx, pt[1] - cy) for pt in poly_pts]
+            
+            winding = winding_number(target_point, translated_polygon, closed=closed)
             field[row, column] = 1.0 if discrete and abs(winding) > 0.5 else winding
 
     return field, xs, ys

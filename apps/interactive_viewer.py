@@ -477,7 +477,6 @@ def explanation_html(title: str, paragraphs: list[str]) -> str:
     body += "</div>"
     return body
 
-
 def hull_figure(state: dict[str, object], step: int) -> tuple[go.Figure, str, str]:
     points = state["points"]
     if not points:
