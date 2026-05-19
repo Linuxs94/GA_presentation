@@ -24,7 +24,7 @@ from ga_presentation.datasets import (
     star_polygon,
 )
 from ga_presentation.fortune import FortuneSnapshot, compute_voronoi
-from ga_presentation.winding import build_winding_field, compute_bounds, polygon_edges, winding_trace
+from ga_presentation.winding import build_winding_field, WN_compute_bounds, polygon_edges, winding_trace
 
 
 Point = tuple[float, float]
@@ -149,7 +149,7 @@ def metric(label: str, value: str) -> str:
 def panel(title: str, body: str) -> str:
     return f"<div class='panel-card'><h3>{escape(title)}</h3>{body}</div>"
 
-
+# call the right cloud of points
 def choose_points(mode: str, count: int, seed: int) -> list[Point]:
     polygons = load_repo_polygons(ROOT)
     if mode == "uniform":
@@ -221,7 +221,7 @@ def build_scenarios(point_mode: str, count: int, seed: int, custom_points: list[
     polygons = load_repo_polygons(ROOT)
     winding_polygon = star_polygon((0.0, 0.0), 2.1, 5.0, 5)
     winding_query = (0.2, 0.25)
-    winding_bounds = compute_bounds([winding_polygon], margin=1.0)
+    winding_bounds = WN_compute_bounds([winding_polygon], margin=1.0)
     hull, hull_steps = monotone_chain(points)
     if points:
         bounds = (
@@ -661,7 +661,6 @@ def fortune_figure(state: dict[str, object], step: int, mode: str) -> tuple[go.F
 
     title = {
         "fortune": "Fortune Sweep",
-        "voronoi": "Voronoi Edges Appearing",
         "duality": "Voronoi -> Delaunay Duality",
     }[mode]
     fig = go.Figure(layout=base_layout(title))
@@ -688,7 +687,9 @@ def fortune_figure(state: dict[str, object], step: int, mode: str) -> tuple[go.F
             )
         )
 
-    if mode in {"fortune", "voronoi", "duality"}:
+    # voronoi
+    if mode in {"fortune", "duality"}:
+        # known voronoi graph
         for start, end in snapshot.finished_segments:
             fig.add_trace(
                 go.Scatter(
@@ -696,29 +697,35 @@ def fortune_figure(state: dict[str, object], step: int, mode: str) -> tuple[go.F
                     y=[start[1], end[1]],
                     mode="lines",
                     line={"color": "#2a9d8f", "width": 2 if mode != "duality" else 1},
-                    opacity=1.0 if mode != "duality" else 0.22,
+                    opacity=1.0 if mode != "duality" else 0.33,
                 )
             )
         for start, end in snapshot.active_segments:
+            is_fortune = (mode == "fortune")
+            # dashed fortune
             fig.add_trace(
                 go.Scatter(
                     x=[start[0], end[0]],
                     y=[start[1], end[1]],
                     mode="lines",
-                    line={"color": "#52b788", "width": 3 if mode == "fortune" else 2, "dash": "dot"},
-                    opacity=0.95 if mode == "fortune" else 0.85,
+                    line={
+                        "color": "#52b788",
+                        "width": 3 if is_fortune else 2,
+                        "dash": "dash" if is_fortune else "solid"
+                    },
+                    opacity=0.95 if is_fortune else 0.0
                 )
             )
-
-    if mode in {"delaunay", "duality"}:
+    # dual
+    if mode in {"duality"}:
         for start, end in snapshot.delaunay_edges:
             fig.add_trace(
                 go.Scatter(
                     x=[start[0], end[0]],
                     y=[start[1], end[1]],
                     mode="lines",
-                    line={"color": "#264653", "width": 2 if mode != "duality" else 1},
-                    opacity=1.0 if mode != "duality" else 0.22,
+                    line={"color": "#264653", "width": 2},
+                    opacity=1.0             
                 )
             )
 
@@ -740,7 +747,7 @@ def fortune_figure(state: dict[str, object], step: int, mode: str) -> tuple[go.F
                     line={"color": "#ff9f1c", "width": 3},
                 )
             )
-    if snapshot.active_circle_center is not None and snapshot.active_circle_radius is not None and mode in {"fortune", "voronoi", "delaunay"}:
+    if snapshot.active_circle_center is not None and snapshot.active_circle_radius is not None and mode in {"fortune"}:
         add_circle_trace(fig, snapshot.active_circle_center, snapshot.active_circle_radius, color="#8d99ae")
         highlight_point(fig, snapshot.active_circle_center, "#8d99ae", size=14, symbol="diamond")
         for site in snapshot.active_circle_sites:
@@ -750,25 +757,24 @@ def fortune_figure(state: dict[str, object], step: int, mode: str) -> tuple[go.F
         highlight_point(fig, snapshot.focus, "#e63946", size=18, symbol="x")
 
     if mode == "duality" and snapshot.voronoi_dual_pairs:
-        pair = snapshot.voronoi_dual_pairs[min(step % len(snapshot.voronoi_dual_pairs), len(snapshot.voronoi_dual_pairs) - 1)]
-        vs, ve = pair["voronoi"]
-        ds, de = pair["dual"]
-        fig.add_trace(
-            go.Scatter(
-                x=[vs[0], ve[0]],
-                y=[vs[1], ve[1]],
-                mode="lines",
-                line={"color": "#00a896", "width": 5},
-            )
-        )
-        fig.add_trace(
-            go.Scatter(
-                x=[ds[0], de[0]],
-                y=[ds[1], de[1]],
-                mode="lines",
-                line={"color": "#e63946", "width": 5},
-            )
-        )
+        x_min, x_max = bounds[0], bounds[1]
+        
+        if snapshot.voronoi_dual_pairs:
+            idx = min(step % len(snapshot.voronoi_dual_pairs), len(snapshot.voronoi_dual_pairs) - 1)
+            pair = snapshot.voronoi_dual_pairs[idx]
+            if "site" in pair:
+                active_site = pair["site"]
+                a_act = active_site[0]
+                b_act = -active_site[1]
+                        
+                fig.add_trace(
+                    go.Scatter(
+                        x=[x_min, x_max],
+                        y=[a_act * x_min - b_act, a_act * x_max - b_act],
+                        mode="lines",
+                        line={"color": "#e63946", "width": 5},
+                    )
+                )
 
     description_lines = [
         f"phase = {snapshot.event_kind}",
@@ -794,22 +800,6 @@ def fortune_figure(state: dict[str, object], step: int, mode: str) -> tuple[go.F
                 "This is the lecture-9 duality idea made explicit rather than only shown as a final triangulation.",
             ],
         )
-    elif mode == "delaunay":
-        explanation = explanation_html(
-            "What is happening now",
-            [
-                "The Delaunay graph is extracted from the same sweep process.",
-                "As circle events finalize local structure, more dual edges become available.",
-            ],
-        )
-    elif mode == "voronoi":
-        explanation = explanation_html(
-            "What is happening now",
-            [
-                "Completed Voronoi edges appear only when the sweep has enough information to finish them.",
-                "This view hides the beach line and emphasizes the diagram growth itself.",
-            ],
-        )
     else:
         explanation = explanation_html(
             "What is happening now",
@@ -832,6 +822,9 @@ def algorithm_info(algorithm: str, state: dict[str, object]) -> tuple[int, str]:
     elif algorithm == "winding_open":
         total = max(1, len(state["winding_open_trace"]))
         label = "Open winding number: the final closing edge is excluded."
+    elif algorithm == "fortune":
+        total = max(1,len(state["fortune"].snapshots))
+        label = "from Voronoi to delaunay using duality laws"
     else:
         total = max(1, len(state["fortune"].snapshots))
         label = "Fortune / Voronoi : all views share the same event-by-event snapshot sequence."
@@ -863,10 +856,6 @@ def render_algorithm(
         figure, structure, explanation = winding_figure(stored_state, step, False)
     elif algorithm == "fortune":
         figure, structure, explanation = fortune_figure(stored_state, step, "fortune")
-    elif algorithm == "voronoi":
-        figure, structure, explanation = fortune_figure(stored_state, step, "voronoi")
-    elif algorithm == "delaunay":
-        figure, structure, explanation = fortune_figure(stored_state, step, "delaunay")
     else:
         figure, structure, explanation = fortune_figure(stored_state, step, "duality")
 

@@ -63,7 +63,7 @@ def winding_trace(
     return steps
 
 
-def compute_bounds(polygons: list[list[PointLike]], margin: float = 2.0) -> tuple[float, float, float, float]:
+def WN_compute_bounds(polygons: list[list[PointLike]], margin: float = 2.0) -> tuple[float, float, float, float]:
     all_x = [point_xy(point)[0] for polygon in polygons for point in polygon]
     all_y = [point_xy(point)[1] for polygon in polygons for point in polygon]
     return min(all_x) - margin, max(all_x) + margin, min(all_y) - margin, max(all_y) + margin

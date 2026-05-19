@@ -28,7 +28,7 @@ from ga_presentation.datasets import (
     star_polygon,
 )
 from ga_presentation.fortune import FortuneSnapshot, compute_voronoi
-from ga_presentation.winding import build_winding_field, compute_bounds, polygon_edges, winding_trace
+from ga_presentation.winding import build_winding_field, WN_compute_bounds, polygon_edges, winding_trace
 
 
 FIGURES_DIR = ROOT / "report" / "figures"
@@ -129,7 +129,7 @@ def save_random_generators_figure(
 
 
 def save_winding_figure(polygon: list[tuple[float, float]]) -> None:
-    bounds = compute_bounds([polygon], margin=1.0)
+    bounds = WN_compute_bounds([polygon], margin=1.0)
     query_point = (0.2, 0.25)
     continuous_closed, xs, ys = build_winding_field(polygon, bounds, resolution=220, discrete=False, closed=True)
     discrete_closed, _, _ = build_winding_field(polygon, bounds, resolution=220, discrete=True, closed=True)
@@ -331,46 +331,7 @@ def save_fortune_assets(
 
     fig, ax = plt.subplots(figsize=(7, 7))
 
-    # def render_voronoi_only(frame_index: int) -> None:
-    #     ax.clear()
-    #     set_axes(ax, "Voronoi edges appearing", bounds)
-    #     draw_points(ax, points, color="#555555", size=18.0)
-    #     for start, end in snapshots[frame_index].finished_segments:
-    #         ax.plot([start[0], end[0]], [start[1], end[1]], color="#2a9d8f", linewidth=1.4)
-    #     for start, end in snapshots[frame_index].active_segments:
-    #         ax.plot([start[0], end[0]], [start[1], end[1]], color="#52b788", linewidth=1.5, linestyle=":")
-
-    # ani = animation.FuncAnimation(
-    #     fig,
-    #     render_voronoi_only,
-    #     frames=len(snapshots),
-    #     interval=450,
-    #     repeat_delay=1500,
-    # )
-    # ani.save(ANIMATIONS_DIR / "voronoi_edges_appearing.gif", writer=animation.PillowWriter(fps=3))
-    # plt.close(fig)
-
-    # fig, ax = plt.subplots(figsize=(7, 7))
-    # ani = animation.FuncAnimation(
-    #     fig,
-    #     lambda frame_index: render_fortune_snapshot(ax, snapshots[frame_index], points, bounds, False, True),
-    #     frames=len(snapshots),
-    #     interval=450,
-    #     repeat_delay=1500,
-    # )
-    # ani.save(ANIMATIONS_DIR / "delaunay_dual_edges.gif", writer=animation.PillowWriter(fps=3))
-    # plt.close(fig)
-
     final_snapshot = snapshots[-1]
-
-    # fig, axes = plt.subplots(1, 2, figsize=(12, 5))
-    # render_fortune_snapshot(axes[0], final_snapshot, points, bounds, True, False, False, False)
-    # axes[0].set_title("Output: final Voronoi edges")
-    # render_fortune_snapshot(axes[1], final_snapshot, points, bounds, False, True, False, False)
-    # axes[1].set_title("Output: Delaunay dual edges")
-    # plt.tight_layout()
-    # plt.savefig(FIGURES_DIR / "voronoi_and_delaunay_outputs.png", dpi=220, bbox_inches="tight")
-    # plt.close(fig)
 
     duality_pairs = sorted(
         final_snapshot.voronoi_dual_pairs,
