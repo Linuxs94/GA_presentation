@@ -169,13 +169,81 @@ def save_winding_figure(polygon: list[tuple[float, float]]) -> None:
     fig, axes = plt.subplots(2, 2, figsize=(15, 10))
     for ax, index in zip(axes.flatten(), indices):
         step = trace_steps[index]
-        set_axes(ax, f"Winding trace step {index + 1}", bounds)
-        draw_polyline(ax, polygon + [polygon[0]], "black")
-        draw_point_labels(ax, polygon, prefix="v")
-        draw_points(ax, [query_point], color="#ff9f1c", size=32.0)
-        ax.plot([query_point[0], step["start"][0]], [query_point[1], step["start"][1]], color="#ef476f", linewidth=1.6)
-        ax.plot([query_point[0], step["end"][0]], [query_point[1], step["end"][1]], color="#118ab2", linewidth=1.6)
-        ax.plot([step["start"][0], step["end"][0]], [step["start"][1], step["end"][1]], color="#06d6a0", linewidth=2.2)
+
+        visible_vertices = min(index + 2, len(polygon))
+
+        partial_polygon = polygon[:visible_vertices]
+
+        polygon_completed = (
+            visible_vertices == len(polygon)
+        )
+
+        if polygon_completed:
+            path = partial_polygon + [polygon[0]]
+        else:
+            path = partial_polygon
+        partial_field, partial_xs, partial_ys = build_winding_field(
+            partial_polygon,
+            bounds,
+            resolution=220,
+            discrete=False,
+            closed=polygon_completed,
+        )
+
+        ax.imshow(
+            partial_field,
+            origin="lower",
+            extent=[
+                partial_xs[0],
+                partial_xs[-1],
+                partial_ys[0],
+                partial_ys[-1],
+            ],
+            cmap="coolwarm",
+            interpolation="nearest",
+        )
+
+        set_axes(
+            ax,
+            f"Winding trace step {index + 1}",
+            bounds,
+        )
+        draw_polyline(
+            ax,
+            path,
+            "black",
+        )
+
+        draw_point_labels(
+            ax,
+            partial_polygon,
+            prefix="v",
+        )
+
+        draw_points(
+            ax,
+            [query_point],
+            color="#ff9f1c",
+            size=32.0,
+        )
+        ax.plot(
+            [query_point[0], step["start"][0]],
+            [query_point[1], step["start"][1]],
+            color="#ef476f",
+            linewidth=1.6,
+        )
+        ax.plot(
+            [query_point[0], step["end"][0]],
+            [query_point[1], step["end"][1]],
+            color="#118ab2",
+            linewidth=1.6,
+        )
+        ax.plot(
+            [step["start"][0], step["end"][0]],
+            [step["start"][1], step["end"][1]],
+            color="#06d6a0",
+            linewidth=2.2,
+        )
         add_state_box(
             ax,
             "Current State",

@@ -575,31 +575,63 @@ def winding_figure(state: dict[str, object], step: int, closed: bool) -> tuple[g
     names = make_point_names(polygon, prefix="v")
     trace = state["winding_closed_trace" if closed else "winding_open_trace"]
     step_data = trace[min(step, len(trace) - 1)]
-    field, _, _ = build_winding_field(polygon, bounds, resolution=90, discrete=False, closed=closed)
+
     min_x, max_x, min_y, max_y = bounds
     query_point = state["winding_query"]
 
     fig = go.Figure(layout=base_layout("Winding Number"))
     fig.update_xaxes(range=[min_x, max_x])
     fig.update_yaxes(range=[min_y, max_y])
-    fig.add_trace(
-        go.Heatmap(
-            z=field,
-            x=[min_x + index * (max_x - min_x) / (field.shape[1] - 1) for index in range(field.shape[1])],
-            y=[min_y + index * (max_y - min_y) / (field.shape[0] - 1) for index in range(field.shape[0])],
-            colorscale="RdBu",
-            zmid=0,
-            showscale=False,
-            opacity=0.82,
-        )
+
+    visible_vertices = min(step + 2, len(polygon))
+    partial_polygon = polygon[:visible_vertices]
+    polygon_completed = (
+        closed and visible_vertices == len(polygon)
     )
-    path = polygon + [polygon[0]] if closed else polygon
+
+    if polygon_completed:
+        path = partial_polygon + [polygon[0]]
+        text_labels = (
+            [names[p] for p in partial_polygon]
+            + [names[polygon[0]]]
+        )
+    else:
+        path = partial_polygon
+        text_labels = [names[p] for p in partial_polygon]
+
+    if len(partial_polygon) >= 2:
+
+        field, _, _ = build_winding_field(
+            partial_polygon,
+            bounds,
+            resolution=90,
+            discrete=False,
+            closed=polygon_completed,
+        )
+
+        fig.add_trace(
+            go.Heatmap(
+                z=field,
+                x=[
+                    min_x + index * (max_x - min_x) / (field.shape[1] - 1)
+                    for index in range(field.shape[1])
+                ],
+                y=[
+                    min_y + index * (max_y - min_y) / (field.shape[0] - 1)
+                    for index in range(field.shape[0])
+                ],
+                colorscale="RdBu",
+                zmid=0,
+                showscale=False,
+                opacity=0.82,
+            )
+        )
     fig.add_trace(
         go.Scatter(
             x=[p[0] for p in path],
             y=[p[1] for p in path],
             mode="lines+markers+text",
-            text=[names[p] for p in polygon] + ([names[polygon[0]]] if closed else []),
+            text=text_labels,
             textposition="top center",
             line={"color": "#111827", "width": 3},
             marker={"size": 7, "color": "#111827"},
@@ -646,10 +678,15 @@ def winding_figure(state: dict[str, object], step: int, closed: bool) -> tuple[g
         [
             "The query point casts no ray here; instead the algorithm sums signed angles edge by edge.",
             "Closed mode includes the last-to-first edge, while open mode stops at the last listed segment.",
-            "The heatmap shows the full field, and the highlighted edge shows the current incremental update.",
+            "The heatmap now grows progressively together with the polygon construction.",
         ],
     )
-    return fig, winding_structure_html(state, step, closed), explanation
+
+    return (
+        fig,
+        winding_structure_html(state, step, closed),
+        explanation,
+    )
 
 
 def fortune_figure(state: dict[str, object], step: int, mode: str) -> tuple[go.Figure, str, str]:
