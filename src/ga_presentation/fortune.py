@@ -15,6 +15,7 @@ class FortuneSnapshot:
     event_kind: str
     sweep_x: float
     focus: PointTuple | None
+    decision: str
     processed_sites: list[PointTuple]
     pending_site_count: int
     pending_circle_count: int
@@ -24,6 +25,8 @@ class FortuneSnapshot:
     beachline: list[list[PointTuple]]
     finished_segments: list[tuple[PointTuple, PointTuple]]
     active_segments: list[tuple[PointTuple, PointTuple]]
+    carried_finished_segments: list[tuple[PointTuple, PointTuple]]
+    carried_active_segments: list[tuple[PointTuple, PointTuple]]
     # voronoi edge <-> delaunay edge relation
     voronoi_dual_pairs: list[dict[str, object]]
     # final delaunay edges
@@ -31,6 +34,16 @@ class FortuneSnapshot:
     active_circle_center: PointTuple | None
     active_circle_radius: float | None
     active_circle_sites: list[PointTuple]
+    affected_arc_site: PointTuple | None
+    removed_arc_site: PointTuple | None
+    created_arc_sites: list[PointTuple]
+    created_segments_this_step: list[dict[str, object]]
+    finished_segments_this_step: list[tuple[PointTuple, PointTuple]]
+    new_active_segments_this_step: list[tuple[PointTuple, PointTuple]]
+    circle_events_added_this_step: list[dict[str, object]]
+    circle_events_invalidated_this_step: list[dict[str, object]]
+    new_delaunay_edges: list[tuple[PointTuple, PointTuple]]
+    camera_bounds: tuple[float, float, float, float]
     action_summary: str
 
 
@@ -46,6 +59,8 @@ class FortuneVoronoi:
         self.triangles: list[tuple[Point, Point, Point]] = []
         self.snapshots: list[FortuneSnapshot] = []
         self.processed_sites: list[PointTuple] = []
+        self._last_delaunay_edges: set[tuple[PointTuple, PointTuple]] = set()
+        self._reset_step_tracking()
         self.min_x, self.max_x, self.min_y, self.max_y = bounds
 
         dx = (self.max_x - self.min_x + 1.0) / 5.0
@@ -59,6 +74,119 @@ class FortuneVoronoi:
         for x, y in points:
             site = Point(float(x), float(y))
             self.site_events.push(site, site.x)
+
+    def _reset_step_tracking(self) -> None:
+        self._current_decision = ""
+        self._current_affected_arc_site: PointTuple | None = None
+        self._current_removed_arc_site: PointTuple | None = None
+        self._current_created_arc_sites: list[PointTuple] = []
+        self._current_created_segments: list[dict[str, object]] = []
+        self._current_finished_segments: list[tuple[PointTuple, PointTuple]] = []
+        self._current_added_circle_events: list[dict[str, object]] = []
+        self._current_invalidated_circle_events: list[dict[str, object]] = []
+
+    def _begin_step_tracking(self, decision: str) -> None:
+        self._reset_step_tracking()
+        self._current_decision = decision
+
+    def _segment_record(self, segment: Segment) -> dict[str, object]:
+        return {
+            "start": segment.start.as_tuple(),
+            "end": segment.end.as_tuple() if segment.end is not None else None,
+            "left": segment.left.as_tuple() if segment.left is not None else None,
+            "right": segment.right.as_tuple() if segment.right is not None else None,
+            "done": segment.done,
+        }
+
+    def _record_created_segment(self, segment: Segment) -> None:
+        self._current_created_segments.append(self._segment_record(segment))
+
+    def _record_finished_segment(self, segment: Segment) -> None:
+        if segment.end is not None:
+            self._current_finished_segments.append((segment.start.as_tuple(), segment.end.as_tuple()))
+
+    def _compute_camera_bounds(
+        self,
+        focus: PointTuple | None,
+        processed_sites: list[PointTuple],
+        pending_sites: list[PointTuple],
+        finished_segments: list[tuple[PointTuple, PointTuple]],
+        active_segments: list[tuple[PointTuple, PointTuple]],
+        beachline: list[list[PointTuple]],
+        active_circle_center: PointTuple | None,
+        active_circle_radius: float | None,
+    ) -> tuple[float, float, float, float]:
+        points: list[PointTuple] = []
+        base_center_x = (self.min_x + self.max_x) * 0.5
+        base_center_y = (self.min_y + self.max_y) * 0.5
+        base_span_x = max(self.max_x - self.min_x, 1.0)
+        base_span_y = max(self.max_y - self.min_y, 1.0)
+        limit_x = base_span_x * 2.5
+        limit_y = base_span_y * 2.5
+
+        def keep(point: PointTuple) -> bool:
+            return (
+                math.isfinite(point[0])
+                and math.isfinite(point[1])
+                and abs(point[0] - base_center_x) <= limit_x
+                and abs(point[1] - base_center_y) <= limit_y
+            )
+
+        points.extend(point for point in processed_sites if keep(point))
+        points.extend(point for point in pending_sites if keep(point))
+        if focus is not None:
+            if keep(focus):
+                points.append(focus)
+        for start, end in finished_segments:
+            if keep(start):
+                points.append(start)
+            if keep(end):
+                points.append(end)
+        for start, end in active_segments:
+            if keep(start):
+                points.append(start)
+            if keep(end):
+                points.append(end)
+        for polyline in beachline:
+            points.extend(point for point in polyline if keep(point))
+        if active_circle_center is not None and active_circle_radius is not None:
+            cx, cy = active_circle_center
+            r = active_circle_radius
+            circle_points = [(cx - r, cy - r), (cx - r, cy + r), (cx + r, cy - r), (cx + r, cy + r)]
+            points.extend(point for point in circle_points if keep(point))
+
+        if not points:
+            return (self.min_x, self.max_x, self.min_y, self.max_y)
+
+        xs = [point[0] for point in points]
+        ys = [point[1] for point in points]
+        min_x = min(xs)
+        max_x = max(xs)
+        min_y = min(ys)
+        max_y = max(ys)
+        span_x = max(max_x - min_x, 1.0)
+        span_y = max(max_y - min_y, 1.0)
+        pad_x = max(span_x * 0.12, 20.0)
+        pad_y = max(span_y * 0.12, 20.0)
+        return (min_x - pad_x, max_x + pad_x, min_y - pad_y, max_y + pad_y)
+
+    def _record_circle_event_added(self, event: Event, arc: Arc) -> None:
+        self._current_added_circle_events.append(
+            {
+                "event_x": float(event.x),
+                "center": event.center.as_tuple(),
+                "arc_site": arc.site.as_tuple(),
+            }
+        )
+
+    def _record_circle_event_invalidated(self, event: Event, arc: Arc) -> None:
+        self._current_invalidated_circle_events.append(
+            {
+                "event_x": float(event.x),
+                "center": event.center.as_tuple(),
+                "arc_site": arc.site.as_tuple(),
+            }
+        )
 
     def process(self, capture: bool = True) -> None:
 
@@ -79,6 +207,8 @@ class FortuneVoronoi:
             self._process_circle_event(capture)
 
         # close unfinished rays
+        if capture:
+            self._begin_step_tracking("finish_edges")
         self._finish_edges()
         if capture:
             self._capture_snapshot("done", self.max_x, None, action_summary="finish remaining edges")
@@ -86,6 +216,8 @@ class FortuneVoronoi:
     def _process_site_event(self, capture: bool) -> None:
         site = self.site_events.pop()
         self.processed_sites.append(site.as_tuple())
+        if capture:
+            self._begin_step_tracking("insert_arc")
 
         # add parabola to beachline
         self._insert_arc(site)
@@ -101,6 +233,9 @@ class FortuneVoronoi:
             return
 
         arc = event.arc
+        if capture:
+            self._begin_step_tracking("remove_arc")
+            self._current_removed_arc_site = arc.site.as_tuple()
         circle_sites: list[PointTuple] = []
         circle_radius: float | None = None
 
@@ -115,6 +250,8 @@ class FortuneVoronoi:
         # new voronoi vertex
         segment = Segment(event.center)
         self.output.append(segment)
+        if capture:
+            self._record_created_segment(segment)
 
         # reconnect beachline
         if arc.previous is not None:
@@ -127,8 +264,12 @@ class FortuneVoronoi:
         # finish broken edges
         if arc.left_segment is not None:
             arc.left_segment.finish(event.center)
+            if capture:
+                self._record_finished_segment(arc.left_segment)
         if arc.right_segment is not None:
             arc.right_segment.finish(event.center)
+            if capture:
+                self._record_finished_segment(arc.right_segment)
 
         # new circle checks
         if arc.previous is not None:
@@ -155,6 +296,7 @@ class FortuneVoronoi:
         # first parabola
         if self.root_arc is None:
             self.root_arc = Arc(site)
+            self._current_created_arc_sites.append(site.as_tuple())
             return
 
         # avoid division problems
@@ -167,6 +309,7 @@ class FortuneVoronoi:
             # check if site hits this arc
             hit, start = self._intersects(site, arc)
             if hit:
+                self._current_affected_arc_site = arc.site.as_tuple()
 
                 # split arc
                 hit_next, _ = self._intersects(site, arc.next)
@@ -181,11 +324,16 @@ class FortuneVoronoi:
                 arc.next.previous = Arc(site, arc, arc.next)
                 arc.next = arc.next.previous
                 arc = arc.next
+                self._current_created_arc_sites.extend(
+                    [arc.site.as_tuple(), arc.next.site.as_tuple() if arc.next is not None else arc.site.as_tuple()]
+                )
 
                 # create voronoi edges
                 left_segment = Segment(start, arc.previous.site, arc.site)
                 right_segment = Segment(start, arc.previous.site, arc.site)
                 self.output.extend([left_segment, right_segment])
+                self._record_created_segment(left_segment)
+                self._record_created_segment(right_segment)
 
                 arc.previous.right_segment = arc.left_segment = left_segment
                 arc.next.left_segment = arc.right_segment = right_segment
@@ -202,12 +350,15 @@ class FortuneVoronoi:
         while arc.next is not None:
             arc = arc.next
         arc.next = Arc(site, arc)
+        self._current_affected_arc_site = arc.site.as_tuple()
+        self._current_created_arc_sites.append(site.as_tuple())
 
         # start infinite edge
         start = Point(self.min_x, (arc.site.y + arc.next.site.y) / 2.0)
         segment = Segment(start, arc.site, arc.next.site)
         arc.right_segment = arc.next.left_segment = segment
         self.output.append(segment)
+        self._record_created_segment(segment)
 
     def _intersects(self, site: Point, arc: Arc | None) -> tuple[bool, Point | None]:
         if arc is None or abs(arc.site.x - site.x) < EPSILON:
@@ -235,6 +386,7 @@ class FortuneVoronoi:
 
         # invalidate old event
         if arc.event is not None and abs(arc.event.x - sweep_x) > EPSILON:
+            self._record_circle_event_invalidated(arc.event, arc)
             arc.event.valid = False
         arc.event = None
 
@@ -248,6 +400,7 @@ class FortuneVoronoi:
         if valid and event_x > sweep_x:
             arc.event = Event(event_x, center, arc)
             self.circle_events.push(arc.event, arc.event.x)
+            self._record_circle_event_added(arc.event, arc)
 
     def _circle(self, a: Point, b: Point, c: Point) -> tuple[bool, float | None, Point | None]:
         # reject clockwise orientation
@@ -319,6 +472,7 @@ class FortuneVoronoi:
             # extend unfinished edge
             if arc.right_segment is not None:
                 arc.right_segment.finish(self._parabola_intersection(arc.site, arc.next.site, directrix_x))
+                self._record_finished_segment(arc.right_segment)
             arc = arc.next
 
     def _capture_snapshot(
@@ -377,6 +531,16 @@ class FortuneVoronoi:
                     pass
             arc = arc.next
 
+        created_segment_starts = {point_key for point_key in [item["start"] for item in self._current_created_segments]}
+        created_segments_with_end = [
+            segment for segment in active_segments if segment[0] in created_segment_starts
+        ]
+        finished_set = set(self._current_finished_segments)
+        active_set = set(active_segments)
+        new_active_set = set(created_segments_with_end)
+        carried_finished_segments = [segment for segment in finished_segments if segment not in finished_set]
+        carried_active_segments = [segment for segment in active_segments if segment not in new_active_set]
+
         # delaunay graph
         delaunay_edges: set[tuple[PointTuple, PointTuple]] = set()
 
@@ -391,6 +555,8 @@ class FortuneVoronoi:
                 # normalized edge
                 edge = tuple(sorted((start_tuple, end_tuple)))
                 delaunay_edges.add(edge)
+        new_delaunay_edges = sorted(delaunay_edges - self._last_delaunay_edges)
+        self._last_delaunay_edges = set(delaunay_edges)
 
         pending_sites: list[PointTuple] = []
 
@@ -406,20 +572,35 @@ class FortuneVoronoi:
             if item is not None and item.valid:
                 pending_circles.append((float(priority), item.center.as_tuple()))
 
+        beachline = self.beachline_polylines(sweep_x)
+        camera_bounds = self._compute_camera_bounds(
+            focus=focus,
+            processed_sites=self.processed_sites[:],
+            pending_sites=pending_sites,
+            finished_segments=finished_segments,
+            active_segments=active_segments,
+            beachline=beachline,
+            active_circle_center=active_circle_center,
+            active_circle_radius=active_circle_radius,
+        )
+
         self.snapshots.append(
             FortuneSnapshot(
                 event_kind=event_kind,
                 sweep_x=sweep_x,
                 focus=focus,
+                decision=self._current_decision,
                 processed_sites=self.processed_sites[:],
                 pending_site_count=len(self.site_events._entries),
                 pending_circle_count=len(self.circle_events._entries),
                 pending_sites=pending_sites,
                 pending_circles=pending_circles,
                 arc_sites=arc_sites,
-                beachline=self.beachline_polylines(sweep_x),
+                beachline=beachline,
                 finished_segments=finished_segments,
                 active_segments=active_segments,
+                carried_finished_segments=carried_finished_segments,
+                carried_active_segments=carried_active_segments,
 
                 # voronoi edge -> delaunay edge
                 voronoi_dual_pairs=voronoi_dual_pairs,
@@ -429,9 +610,20 @@ class FortuneVoronoi:
                 active_circle_center=active_circle_center,
                 active_circle_radius=active_circle_radius,
                 active_circle_sites=active_circle_sites or [],
+                affected_arc_site=self._current_affected_arc_site,
+                removed_arc_site=self._current_removed_arc_site,
+                created_arc_sites=self._current_created_arc_sites[:],
+                created_segments_this_step=self._current_created_segments[:],
+                finished_segments_this_step=self._current_finished_segments[:],
+                new_active_segments_this_step=created_segments_with_end,
+                circle_events_added_this_step=self._current_added_circle_events[:],
+                circle_events_invalidated_this_step=self._current_invalidated_circle_events[:],
+                new_delaunay_edges=new_delaunay_edges,
+                camera_bounds=camera_bounds,
                 action_summary=action_summary,
             )
         )
+        self._reset_step_tracking()
 
     def beachline_polylines(
         self,
