@@ -226,13 +226,11 @@ def choose_points(mode: str, count: int, seed: int) -> list[Point]:
         return []
     return sample_polygon_boundary(polygons["p1"], count, seed=seed)
 
-
 def point_to_pixel(point: Point, size: int = EDITOR_SIZE, bounds: tuple[float, float, float, float] = EDITOR_BOUNDS) -> tuple[int, int]:
     min_x, max_x, min_y, max_y = bounds
     px = int(round((point[0] - min_x) / max(max_x - min_x, 1e-9) * (size - 1)))
     py = int(round((max_y - point[1]) / max(max_y - min_y, 1e-9) * (size - 1)))
     return px, py
-
 
 def pixel_to_point(index: tuple[int, int], size: int = EDITOR_SIZE, bounds: tuple[float, float, float, float] = EDITOR_BOUNDS) -> Point:
     row, col = index
@@ -240,7 +238,6 @@ def pixel_to_point(index: tuple[int, int], size: int = EDITOR_SIZE, bounds: tupl
     x = min_x + (col / max(size - 1, 1)) * (max_x - min_x)
     y = max_y - (row / max(size - 1, 1)) * (max_y - min_y)
     return (round(x, 3), round(y, 3))
-
 
 def build_editor_image(points: list[Point], size: int = EDITOR_SIZE) -> Image.Image:
     image = Image.new("RGB", (size, size), "#fbfcfe")
@@ -339,8 +336,6 @@ def filtered_delaunay_records(edges: list[tuple[Point, Point]], polygon: list[Po
 
     for start, end in edges:
         midpoint = ((start[0] + end[0]) * 0.5, (start[1] + end[1]) * 0.5)
-
-        intersects = False
         winding = 0.0
 
         if enabled and len(polygon) >= 3:
@@ -352,11 +347,14 @@ def filtered_delaunay_records(edges: list[tuple[Point, Point]], polygon: list[Po
                     intersects = True
                     break
 
-            winding = winding_number(midpoint, polygon, closed=True)
+            winding = winding_number(midpoint[0], midpoint[1], polygon)
 
         # FINAL DECISION: ONLY WINDING
         keep = True
         if enabled and len(polygon) >= 3:
+            # NOTE: we discretize the WN
+            # so -1 and 1 are inside
+            # 0 is the only value outside
             keep = abs(winding) >= 0.5
 
         angle = math.atan2(midpoint[1] - cy, midpoint[0] - cx)
@@ -370,17 +368,14 @@ def filtered_delaunay_records(edges: list[tuple[Point, Point]], polygon: list[Po
                 "midpoint": midpoint,
                 "winding": winding,
                 "keep": keep,
-                "reason": (
-                    "inside boundary"
-                    if keep
-                    else ("outside boundary" if abs(winding) < 0.5 else "uncertain")
-                ),
+                "reason": ("inside boundary" if keep else ("outside boundary" if abs(winding) < 0.5 else "uncertain")),
                 "order_angle": angle,
             }
         )
 
     records.sort(key=lambda item: (item["order_angle"], item["midpoint"][0], item["midpoint"][1]))
     return records
+
 def final_filter_records(state: dict[str, object]) -> list[dict[str, object]]:
     final_snapshot = state["fortune"].snapshots[-1]
     return filtered_delaunay_records(
@@ -1746,7 +1741,8 @@ def render_algorithm(
         header,
         structure,
         explanation,
-        gr.update(maximum=total_steps - 1, value=step),
+        # MODIFICA QUESTA RIGA QUI SOTTO:
+        gr.update(maximum=max(1, total_steps - 1), value=step),
         stored_state,
         build_editor_image(custom_points or []),
         custom_points_html(custom_points or []),

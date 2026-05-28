@@ -121,9 +121,6 @@ def winding_contributions(
         )
     return contributions
 
-
-def winding_number(point: PointLike, polygon: list[PointLike], closed: bool = True) -> float:
-    px, py = point_xy(point)
 def winding_number(x, y, polygon):
 
     total_angle = 0.0
