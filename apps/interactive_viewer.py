@@ -315,19 +315,54 @@ def build_scenarios(point_mode: str, count: int, seed: int, custom_points: list[
 
 def filtered_delaunay_records(edges: list[tuple[Point, Point]], polygon: list[Point], enabled: bool) -> list[dict[str, object]]:
     records: list[dict[str, object]] = []
+
+    def ccw(a: Point, b: Point, c: Point) -> bool:
+        return (c[1] - a[1]) * (b[0] - a[0]) > (b[1] - a[1]) * (c[0] - a[0])
+
+    def segments_intersect(a: Point, b: Point, c: Point, d: Point) -> bool:
+        return (
+            ccw(a, c, d) != ccw(b, c, d)
+            and ccw(a, b, c) != ccw(a, b, d)
+        )
+
     if polygon:
         cx = sum(point[0] for point in polygon) / len(polygon)
         cy = sum(point[1] for point in polygon) / len(polygon)
     else:
         cx = 0.0
         cy = 0.0
+
+    polygon_edges = []
+    if len(polygon) >= 2:
+        for i in range(len(polygon)):
+            polygon_edges.append((polygon[i], polygon[(i + 1) % len(polygon)]))
+
     for start, end in edges:
         midpoint = ((start[0] + end[0]) * 0.5, (start[1] + end[1]) * 0.5)
-        winding = winding_number(midpoint, polygon, closed=True)
-        keep = (abs(winding) >= 0.5) if enabled and len(polygon) >= 3 else True
+
+        intersects = False
+        winding = 0.0
+
+        if enabled and len(polygon) >= 3:
+            for p0, p1 in polygon_edges:
+                if start == p0 or start == p1 or end == p0 or end == p1:
+                    continue
+
+                if segments_intersect(start, end, p0, p1):
+                    intersects = True
+                    break
+
+            winding = winding_number(midpoint, polygon, closed=True)
+
+        # FINAL DECISION: ONLY WINDING
+        keep = True
+        if enabled and len(polygon) >= 3:
+            keep = abs(winding) >= 0.5
+
         angle = math.atan2(midpoint[1] - cy, midpoint[0] - cx)
         if angle < 0:
             angle += 2.0 * math.pi
+
         records.append(
             {
                 "start": start,
@@ -335,14 +370,17 @@ def filtered_delaunay_records(edges: list[tuple[Point, Point]], polygon: list[Po
                 "midpoint": midpoint,
                 "winding": winding,
                 "keep": keep,
-                "reason": "inside boundary" if keep else "outside boundary",
+                "reason": (
+                    "inside boundary"
+                    if keep
+                    else ("outside boundary" if abs(winding) < 0.5 else "uncertain")
+                ),
                 "order_angle": angle,
             }
         )
+
     records.sort(key=lambda item: (item["order_angle"], item["midpoint"][0], item["midpoint"][1]))
     return records
-
-
 def final_filter_records(state: dict[str, object]) -> list[dict[str, object]]:
     final_snapshot = state["fortune"].snapshots[-1]
     return filtered_delaunay_records(
@@ -776,7 +814,7 @@ def winding_figure(state: dict[str, object], step: int, closed: bool) -> tuple[g
         field, _, _ = build_winding_field(
             partial_polygon,
             bounds,
-            resolution=90,
+            resolution=300,
             discrete=False,
             closed=polygon_completed,
         )
@@ -795,7 +833,7 @@ def winding_figure(state: dict[str, object], step: int, closed: bool) -> tuple[g
                 colorscale="RdBu",
                 zmid=0,
                 showscale=False,
-                opacity=0.42,
+                opacity=0.62,
             )
         )
     if len(path) >= 2:
@@ -817,7 +855,7 @@ def winding_figure(state: dict[str, object], step: int, closed: bool) -> tuple[g
                 y=[polygon[-1][1], polygon[0][1]],
                 mode="lines",
                 line={"color": "#ef4444", "width": 2, "dash": "dash"},
-                opacity=0.45,
+                opacity=0.46,
             )
         )
     processed_edges = polygon_edges(polygon, closed=closed)
@@ -922,7 +960,7 @@ def fortune_figure(state: dict[str, object], step: int, mode: str) -> tuple[go.F
                     y=[start[1], end[1]],
                     mode="lines",
                     line={"color": "#94a3b8", "width": 1.5 if mode != "duality" else 1},
-                    opacity=0.55 if mode != "duality" else 0.18,
+                    opacity=0.55 if mode != "duality" else 0.48,
                 )
             )
         for start, end in snapshot.active_segments:
@@ -1623,7 +1661,7 @@ def combined_figure(state: dict[str, object]) -> tuple[go.Figure, str, str]:
                 y=[point[1] for point in hull + [hull[0]]],
                 mode="lines",
                 line={"color": "#ef4444", "width": 2, "dash": "dash"},
-                opacity=0.22,
+                opacity=0.42,
             )
         )
 
@@ -1836,10 +1874,10 @@ def launch() -> gr.Blocks:
                         ("Winding Number (Closed)", "winding_closed"),
                         ("Winding Number (Open)", "winding_open"),
                         ("Fortune Sweep", "fortune"),
-                        ("Voronoi Growth", "voronoi_growth"),
+                        # ("Voronoi Growth", "voronoi_growth"),
+                        ("Voronoi -> Delaunay Duality", "duality"),
                         ("Delaunay With Boundary Filter", "filtered_delaunay"),
                         ("Combined Boundary + Interior", "combined"),
-                        ("Voronoi -> Delaunay Duality", "duality"),
                     ],
                     value="convex_hull",
                     label="Algorithm",

@@ -124,14 +124,26 @@ def winding_contributions(
 
 def winding_number(point: PointLike, polygon: list[PointLike], closed: bool = True) -> float:
     px, py = point_xy(point)
+def winding_number(x, y, polygon):
+
     total_angle = 0.0
-    for start, end in polygon_edges(polygon, closed=closed):
-        x1 = start[0] - px
-        y1 = start[1] - py
-        x2 = end[0] - px
-        y2 = end[1] - py
-        total_angle += math.atan2(x1 * y2 - y1 * x2, x1 * x2 + y1 * y2)
-    return total_angle / (2.0 * math.pi)
+    n = len(polygon)
+
+    for i in range(n-1):
+
+        x1 = polygon[i][0] - x
+        y1 = polygon[i][1] - y
+
+        x2 = polygon[i+1][0] - x
+        y2 = polygon[i+1][1] - y
+
+        cross = x1*y2 - y1*x2
+        dot   = x1*x2 + y1*y2
+
+        angle = math.atan2(cross, dot)
+        total_angle += angle
+
+    return total_angle / (2*math.pi)
 
 
 def winding_trace(
@@ -175,7 +187,7 @@ def WN_compute_bounds(polygons: list[list[PointLike]], margin: float = 2.0) -> t
 def build_winding_field(
     polygon: list[PointLike],
     bounds: tuple[float, float, float, float],
-    resolution: int = 220,
+    resolution: int = 100,
     discrete: bool = False,
     closed: bool = True,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
