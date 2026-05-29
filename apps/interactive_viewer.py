@@ -313,18 +313,44 @@ def build_scenarios(point_mode: str, count: int, seed: int, custom_points: list[
 def filtered_delaunay_records(edges: list[tuple[Point, Point]], polygon: list[Point], enabled: bool) -> list[dict[str, object]]:
     records: list[dict[str, object]] = []
 
-    def ccw(a: Point, b: Point, c: Point) -> bool:
-        return (c[1] - a[1]) * (b[0] - a[0]) > (b[1] - a[1]) * (c[0] - a[0])
+    EPS = 1e-6
+    
+    def orientation(a: Point, b: Point, c: Point) -> int:
+        val =(b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])
+        if abs(val) < EPS:
+            return 0
+        return 1 if val > 0 else 2
 
     def segments_intersect(a: Point, b: Point, c: Point, d: Point) -> bool:
-        return (
-            ccw(a, c, d) != ccw(b, c, d)
-            and ccw(a, b, c) != ccw(a, b, d)
-        )
+        o1 = orientation(a, b, c)
+        o2 = orientation(a, b, d)
+        o3 = orientation(c, d, a)
+        o4 = orientation(c, d, b)
+
+        if o1 == 0 or o2 == 0 or o3 == 0 or o4 == 0:
+            return False
+
+        return (o1 != o2) and (o3 != o4)
+
+    def trim_segment(a: Point, b: Point, eps: float = 1e-4) -> Tuple[Point, Point]:
+        dx = b[0] - a[0]
+        dy = b[1] - a[1]
+        norm = math.hypot(dx, dy)
+
+        if norm < EPS:
+            return a, b
+
+        ux = dx / norm
+        uy = dy / norm
+
+        a2 = (a[0] + ux * eps, a[1] + uy * eps)
+        b2 = (b[0] - ux * eps, b[1] - uy * eps)
+
+        return a2, b2
 
     if polygon:
-        cx = sum(point[0] for point in polygon) / len(polygon)
-        cy = sum(point[1] for point in polygon) / len(polygon)
+        cx = sum(p[0] for p in polygon) / len(polygon)
+        cy = sum(p[1] for p in polygon) / len(polygon)
     else:
         cx = 0.0
         cy = 0.0
@@ -336,26 +362,34 @@ def filtered_delaunay_records(edges: list[tuple[Point, Point]], polygon: list[Po
 
     for start, end in edges:
         midpoint = ((start[0] + end[0]) * 0.5, (start[1] + end[1]) * 0.5)
+
+        intersects = False
         winding = 0.0
 
         if enabled and len(polygon) >= 3:
-            for p0, p1 in polygon_edges:
-                if start == p0 or start == p1 or end == p0 or end == p1:
-                    continue
 
-                if segments_intersect(start, end, p0, p1):
+            # TRIM EDGE 
+            a, b = trim_segment(start, end, eps=1e-4)
+
+            for p0, p1 in polygon_edges:
+
+                if segments_intersect(a, b, p0, p1):
                     intersects = True
                     break
 
-            winding = winding_number(midpoint[0], midpoint[1], polygon)
+            if not intersects:
+                winding = winding_number(midpoint[0], midpoint[1], polygon)
 
-        # FINAL DECISION: ONLY WINDING
-        keep = True
         if enabled and len(polygon) >= 3:
-            # NOTE: we discretize the WN
-            # so -1 and 1 are inside
-            # 0 is the only value outside
-            keep = abs(winding) >= 0.5
+            if intersects:
+                keep = False
+                reason = "edge intersects polygon"
+            else:
+                keep = abs(winding) >= 0.5
+                reason = "inside boundary" if keep else "outside boundary"
+        else:
+            keep = True
+            reason = "no filtering"
 
         angle = math.atan2(midpoint[1] - cy, midpoint[0] - cx)
         if angle < 0:
@@ -367,8 +401,9 @@ def filtered_delaunay_records(edges: list[tuple[Point, Point]], polygon: list[Po
                 "end": end,
                 "midpoint": midpoint,
                 "winding": winding,
+                "intersects": intersects,
                 "keep": keep,
-                "reason": ("inside boundary" if keep else ("outside boundary" if abs(winding) < 0.5 else "uncertain")),
+                "reason": reason,
                 "order_angle": angle,
             }
         )
