@@ -378,7 +378,7 @@ def filtered_delaunay_records(edges: list[tuple[Point, Point]], polygon: list[Po
                     break
 
             if not intersects:
-                winding = winding_number(midpoint[0], midpoint[1], polygon)
+                winding = winding_number(midpoint, polygon)
 
         if enabled and len(polygon) >= 3:
             if intersects:

@@ -1,3 +1,4 @@
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -121,21 +122,40 @@ def winding_contributions(
         )
     return contributions
 
-def winding_number(x, y, polygon):
+def winding_number(point: PointLike, polygon: list[PointLike], closed: bool = True) -> float:
+    """
+    Calcola il Winding Number di un punto rispetto a un poligono 
+    utilizzando la somma degli angoli polari.
+    """
+    if not polygon:
+        return 0.0
 
+    # 1. Estrazione corretta delle coordinate del target point
+    x, y = point_xy(point)
+    
     total_angle = 0.0
     n = len(polygon)
+    
+    # 2. Iterazione su tutti i segmenti del poligono
+    for i in range(n):
+        # Gestione del punto successivo (connette l'ultimo al primo se closed=True)
+        if i == n - 1:
+            if not closed:
+                break
+            next_idx = 0
+        else:
+            next_idx = i + 1
+            
+        p1_x, p1_y = point_xy(polygon[i])
+        p2_x, p2_y = point_xy(polygon[next_idx])
 
-    for i in range(n-1):
+        # Traslazione rispetto al punto di target (x, y)
+        x1, y1 = p1_x - x, p1_y - y
+        x2, y2 = p2_x - x, p2_y - y
 
-        x1 = polygon[i][0] - x
-        y1 = polygon[i][1] - y
-
-        x2 = polygon[i+1][0] - x
-        y2 = polygon[i+1][1] - y
-
-        cross = x1*y2 - y1*x2
-        dot   = x1*x2 + y1*y2
+        # Prodotto vettoriale e scalare per calcolare l'angolo orientato
+        cross = x1 * y2 - y1 * x2
+        dot = x1 * x2 + y1 * y2
 
         angle = math.atan2(cross, dot)
         total_angle += angle
