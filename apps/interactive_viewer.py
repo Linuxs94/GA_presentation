@@ -708,7 +708,7 @@ def fortune_structure_html(state: dict[str, object], snapshot: FortuneSnapshot, 
         "The panel reports the local delta of this step, not just the accumulated result.",
     ]
     if mode in {"filtered_delaunay", "combined"}:
-        why_lines.append("The filter keeps only Delaunay edges whose midpoint stays inside the winding-number region.")
+        why_lines.append("The filter first rejects Delaunay edges that cross the polygon boundary, then uses the winding-number test on the midpoint for the remaining candidates.")
     if pair is not None:
         why_lines.append(
             f"highlighted dual pair = Voronoi {format_point(pair['voronoi'][0])}->{format_point(pair['voronoi'][1])} | Delaunay {names.get(pair['dual'][0], '?')}->{names.get(pair['dual'][1], '?')}"
@@ -1227,7 +1227,7 @@ def fortune_figure(state: dict[str, object], step: int, mode: str) -> tuple[go.F
         explanation = explanation_html(
             "What is happening now",
             [
-                "The raw Delaunay graph is filtered by testing the midpoint of each edge against the winding-number boundary.",
+                "The raw Delaunay graph is filtered in two steps: boundary-crossing edges are discarded, and the remaining edges are tested through the midpoint against the winding-number boundary.",
                 "This view makes the keep/discard decision explicit so the interior graph is not presented as arbitrary.",
             ],
         )
@@ -1378,7 +1378,7 @@ def filtered_delaunay_structure_html(state: dict[str, object], step: int) -> str
     ]
     why_lines = [
         "This is the filtering process, not the final result.",
-        "Each Delaunay edge is tested independently through its midpoint.",
+        "Each Delaunay edge is tested independently: first against the polygon boundary, then, if it survives, through its midpoint.",
         "Edges are evaluated in a fixed clockwise order around the polygon center.",
     ]
     return story_panel(
@@ -1448,7 +1448,10 @@ def filtered_delaunay_figure(state: dict[str, object], step: int) -> tuple[go.Fi
     if current is not None:
         midpoint = current["midpoint"]
         start, end = current["start"], current["end"]
-        decision_text = "midpoint inside -> keep" if current["keep"] else "midpoint outside -> discard"
+        if current["intersects"]:
+            decision_text = "edge crosses boundary -> discard"
+        else:
+            decision_text = "midpoint inside -> keep" if current["keep"] else "midpoint outside -> discard"
         add_text_label(fig, midpoint, decision_text, "#166534" if current["keep"] else "#991b1b", yshift=20)
         fig.add_trace(
             go.Scatter(
@@ -1467,12 +1470,16 @@ def filtered_delaunay_figure(state: dict[str, object], step: int) -> tuple[go.Fi
 
     explanation_lines = [
         "This is not a new triangulation algorithm. It is a cleanup step applied after Delaunay.",
-        "For each raw Delaunay edge we test only its midpoint against the winding-number boundary.",
-        "If the midpoint is inside the boundary, the edge stays as interior structure; if it is outside, the edge is removed.",
+        "For each raw Delaunay edge we first check whether it crosses the polygon boundary.",
+        "If it does not cross the boundary, we test its midpoint with the winding number and keep the edge only when that midpoint is inside.",
     ]
     if current is not None:
         explanation_lines.append(
-            f"Current decision: {'keep' if current['keep'] else 'discard'} because winding(midpoint) = {current['winding']:.3f}."
+            (
+                "Current decision: discard because the edge intersects the polygon boundary."
+                if current["intersects"]
+                else f"Current decision: {'keep' if current['keep'] else 'discard'} because winding(midpoint) = {current['winding']:.3f}."
+            )
         )
     return fig, filtered_delaunay_structure_html(state, step), append_note(
         explanation_html("What is happening now", explanation_lines),
