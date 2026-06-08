@@ -838,7 +838,7 @@ def winding_figure(state: dict[str, object], step: int, closed: bool) -> tuple[g
     else:
         path = partial_polygon
         text_labels = [names[p] for p in partial_polygon]
-
+        
     if len(partial_polygon) >= 2:
 
         field, _, _ = build_winding_field(
@@ -846,7 +846,7 @@ def winding_figure(state: dict[str, object], step: int, closed: bool) -> tuple[g
             bounds,
             resolution=300,
             discrete=False,
-            closed=polygon_completed,
+            closed=closed,
         )
 
         fig.add_trace(
@@ -1783,7 +1783,6 @@ def render_algorithm(
         header,
         structure,
         explanation,
-        # MODIFICA QUESTA RIGA QUI SOTTO:
         gr.update(maximum=max(1, total_steps - 1), value=step),
         stored_state,
         build_editor_image(custom_points or []),

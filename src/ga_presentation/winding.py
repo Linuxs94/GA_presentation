@@ -124,21 +124,21 @@ def winding_contributions(
 
 def winding_number(point: PointLike, polygon: list[PointLike], closed: bool = True) -> float:
     """
-    Calcola il Winding Number di un punto rispetto a un poligono 
-    utilizzando la somma degli angoli polari.
+    point: the mean point. 
+    Compute the winding number with respecto to this point
     """
     if not polygon:
         return 0.0
 
-    # 1. Estrazione corretta delle coordinate del target point
+    # point center
     x, y = point_xy(point)
     
-    total_angle = 0.0
+    wn = 0.0
     n = len(polygon)
     
-    # 2. Iterazione su tutti i segmenti del poligono
+    # for all edge of the polygon
     for i in range(n):
-        # Gestione del punto successivo (connette l'ultimo al primo se closed=True)
+        # connect last point if closed
         if i == n - 1:
             if not closed:
                 break
@@ -149,18 +149,36 @@ def winding_number(point: PointLike, polygon: list[PointLike], closed: bool = Tr
         p1_x, p1_y = point_xy(polygon[i])
         p2_x, p2_y = point_xy(polygon[next_idx])
 
-        # Traslazione rispetto al punto di target (x, y)
-        x1, y1 = p1_x - x, p1_y - y
-        x2, y2 = p2_x - x, p2_y - y
+        if closed:
+            # wrt orizontal line
+            if p1_y <= y:
+                if p2_y > y:  # go up
+                    # orientation test
+                    if (p2_x - p1_x) * (y - p1_y) - (x - p1_x) * (p2_y - p1_y) > 0:
+                        wn += 1.0
+            else:
+                if p2_y <= y:  # go down
+                    # Orientation test
+                    if (p2_x - p1_x) * (y - p1_y) - (x - p1_x) * (p2_y - p1_y) < 0:
+                        wn -= 1.0
 
-        # Prodotto vettoriale e scalare per calcolare l'angolo orientato
-        cross = x1 * y2 - y1 * x2
-        dot = x1 * x2 + y1 * y2
+        else:
+            # open
+            x1, y1 = p1_x - x, p1_y - y
+            x2, y2 = p2_x - x, p2_y - y
 
-        angle = math.atan2(cross, dot)
-        total_angle += angle
+            # do compmute angle
+            cross = x1 * y2 - y1 * x2
+            dot = x1 * x2 + y1 * y2
 
-    return total_angle / (2*math.pi)
+    if closed:
+        return wn
+    
+    #ony for visualization
+    angle = math.atan2(cross, dot)
+    wn += angle
+
+    return wn / (2*math.pi)
 
 
 def winding_trace(
