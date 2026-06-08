@@ -171,12 +171,13 @@ def winding_number(point: PointLike, polygon: list[PointLike], closed: bool = Tr
             cross = x1 * y2 - y1 * x2
             dot = x1 * x2 + y1 * y2
 
+            wn += math.atan2(cross, dot)
     if closed:
         return wn
     
-    #ony for visualization
-    angle = math.atan2(cross, dot)
-    wn += angle
+    #only for visualization
+    # angle = math.atan2(cross, dot)
+    # wn += angle
 
     return wn / (2*math.pi)
 

@@ -421,13 +421,17 @@ def final_filter_records(state: dict[str, object]) -> list[dict[str, object]]:
 
 
 def final_duality_pairs(state: dict[str, object]) -> list[dict[str, object]]:
+    
+    # voronoi last step
     final_snapshot = state["fortune"].snapshots[-1]
     points = state["points"]
     bounds = state["fortune_bounds"]
+
     min_x, max_x, min_y, max_y = bounds
     span = max(max_x - min_x, max_y - min_y, 1.0)
     limit = span * 20.0
 
+    # find site
     def canonical_site(site: Point) -> Point:
         best = min(points, key=lambda candidate: (candidate[0] - site[0]) ** 2 + (candidate[1] - site[1]) ** 2)
         if (best[0] - site[0]) ** 2 + (best[1] - site[1]) ** 2 <= 1e-4:
@@ -438,6 +442,8 @@ def final_duality_pairs(state: dict[str, object]) -> list[dict[str, object]]:
     seen: set[tuple[tuple[float, float], tuple[float, float], tuple[float, float], tuple[float, float]]] = set()
     for pair in final_snapshot.voronoi_dual_pairs:
         vor_start, vor_end = pair["voronoi"]
+
+        #avoid infinite rays
         if max(abs(vor_start[0]), abs(vor_start[1]), abs(vor_end[0]), abs(vor_end[1])) > limit:
             continue
         dual_start = point_key(canonical_site(pair["dual"][0]))
